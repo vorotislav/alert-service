@@ -9,7 +9,7 @@ import (
 )
 
 type Service struct {
-	server http.Server
+	server *http.Server
 }
 
 func NewService() *Service {
@@ -23,8 +23,13 @@ func NewService() *Service {
 
 	mux.Handle("/update/counter/", counterMetricsHandler)
 	mux.Handle("/update/gauge/", gaugeMetricsHandler)
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "", http.StatusBadRequest)
 
-	server := http.Server{
+		return
+	})
+
+	server := &http.Server{
 		Addr:    ":8080",
 		Handler: mux,
 	}

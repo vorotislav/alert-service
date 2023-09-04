@@ -31,15 +31,15 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	re := regexp.MustCompile(`^/update/counter/(?P<name>\w+)/(?P<value>[^/]+)$`)
 	values := re.FindStringSubmatch(r.RequestURI)
 
-	headerContentType := r.Header.Get("content-type")
-	if headerContentType != "text/plain" {
-		http.Error(w, "the content-type is specified incorrectly", http.StatusBadRequest)
-
-		return
-	}
+	//headerContentType := r.Header.Get("content-type")
+	//if headerContentType != "text/plain" {
+	//	http.Error(w, "the content-type is specified incorrectly", http.StatusBadRequest)
+	//
+	//	return
+	//}
 
 	if len(values) != 3 {
-		http.Error(w, "the path is specified incorrectly", http.StatusBadRequest)
+		http.Error(w, "the path is specified incorrectly", http.StatusNotFound)
 
 		return
 	}
