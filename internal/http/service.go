@@ -25,8 +25,6 @@ func NewService() *Service {
 	mux.Handle("/update/gauge/", gaugeMetricsHandler)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "", http.StatusBadRequest)
-
-		return
 	})
 
 	server := &http.Server{
