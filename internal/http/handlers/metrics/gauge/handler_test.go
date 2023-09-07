@@ -51,6 +51,8 @@ func TestHandler_ServeHTTP(t *testing.T) {
 			}
 			h.ServeHTTP(w, tt.giveRequest)
 			res := w.Result()
+			defer res.Body.Close()
+
 			assert.Equal(t, res.StatusCode, tt.wantStatusCode)
 		})
 	}
