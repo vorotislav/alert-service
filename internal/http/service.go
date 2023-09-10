@@ -36,6 +36,14 @@ func NewService() *Service {
 				r.Post("/{metricValue}", gaugeMetricsHandler.Update)
 			})
 		})
+
+		r.Route("/{metricType}", func(r chi.Router) {
+			r.Route("/{metricName}", func(r chi.Router) {
+				r.Post("/{metricValue}", func(writer http.ResponseWriter, request *http.Request) {
+					http.Error(writer, "", http.StatusBadRequest)
+				})
+			})
+		})
 	})
 
 	r.Route("/value", func(r chi.Router) {
@@ -51,6 +59,12 @@ func NewService() *Service {
 			})
 
 		})
+		r.Route("/{metricType}", func(r chi.Router) {
+			r.Get("/{metricName}", func(writer http.ResponseWriter, request *http.Request) {
+				http.Error(writer, "", http.StatusBadRequest)
+			})
+		})
+
 	})
 
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
