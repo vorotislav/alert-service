@@ -23,6 +23,10 @@ func (m *mockStorage) GetCounterValue(name string) (int64, error) {
 	return 0, fmt.Errorf("some error")
 }
 
+func (m *mockStorage) AllCounterMetrics() ([]byte, error) {
+	return nil, nil
+}
+
 func TestHandler_Update(t *testing.T) {
 	tests := []struct {
 		name           string

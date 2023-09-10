@@ -14,6 +14,14 @@ func (m *mockStorage) UpdateGauge(name string, value float64) error {
 	return nil
 }
 
+func (m *mockStorage) GetGaugeValue(name string) (float64, error) {
+	return 0, nil
+}
+
+func (m *mockStorage) AllGaugeMetrics() ([]byte, error) {
+	return nil, nil
+}
+
 func TestHandler_Update(t *testing.T) {
 
 	tests := []struct {
