@@ -1,6 +1,7 @@
 package http
 
 import (
+	"github.com/go-chi/chi/v5"
 	"net/http"
 
 	"github.com/vorotislav/alert-service/internal/http/handlers/metrics/counter"
@@ -9,11 +10,13 @@ import (
 )
 
 type Service struct {
-	server *http.Server
+	server         *http.Server
+	counterHandler *counter.Handler
+	gaugeHandler   *gauge.Handler
 }
 
 func NewService() *Service {
-	mux := http.NewServeMux()
+	r := chi.NewRouter()
 
 	store := storage.NewMemStorage()
 
@@ -21,19 +24,64 @@ func NewService() *Service {
 
 	gaugeMetricsHandler := gauge.NewHandler(store)
 
-	mux.Handle("/update/counter/", counterMetricsHandler)
-	mux.Handle("/update/gauge/", gaugeMetricsHandler)
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "", http.StatusBadRequest)
+	r.Route("/update", func(r chi.Router) {
+		r.Route("/counter", func(r chi.Router) {
+			r.Route("/{metricName}", func(r chi.Router) {
+				r.Post("/{metricValue}", counterMetricsHandler.Update)
+			})
+		})
+
+		r.Route("/gauge", func(r chi.Router) {
+			r.Route("/{metricName}", func(r chi.Router) {
+				r.Post("/{metricValue}", gaugeMetricsHandler.Update)
+			})
+		})
+	})
+
+	r.Route("/value", func(r chi.Router) {
+		r.Route("/counter", func(r chi.Router) {
+			r.Route("/{metricName}", func(r chi.Router) {
+				r.Get("/", counterMetricsHandler.Value)
+			})
+		})
+
+		r.Route("/gauge", func(r chi.Router) {
+			r.Route("/{metricName}", func(r chi.Router) {
+				r.Get("/", gaugeMetricsHandler.Value)
+			})
+
+		})
+	})
+
+	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		respCounter, err := counterMetricsHandler.AllMetrics()
+		if err != nil {
+			http.Error(w, "", http.StatusInternalServerError)
+		}
+
+		respGauge, err := gaugeMetricsHandler.AllMetrics()
+		if err != nil {
+			http.Error(w, "", http.StatusInternalServerError)
+		}
+
+		resp := append(respCounter, respGauge...)
+
+		w.Write(resp)
+		w.WriteHeader(http.StatusOK)
+
+		w.Header().Set("Content-Type", "text/plain")
+		w.Header().Add("Content-Type", "charset=utf-8")
 	})
 
 	server := &http.Server{
 		Addr:    ":8080",
-		Handler: mux,
+		Handler: r,
 	}
 
 	return &Service{
-		server: server,
+		server:         server,
+		counterHandler: counterMetricsHandler,
+		gaugeHandler:   gaugeMetricsHandler,
 	}
 }
 

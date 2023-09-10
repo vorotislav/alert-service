@@ -1,6 +1,7 @@
 package counter
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
@@ -14,7 +15,15 @@ func (m *mockStorage) UpdateCounter(_ string, _ int64) error {
 	return nil
 }
 
-func TestHandler_ServeHTTP(t *testing.T) {
+func (m *mockStorage) GetCounterValue(name string) (int64, error) {
+	if name == "PollCount" {
+		return 15, nil
+	}
+
+	return 0, fmt.Errorf("some error")
+}
+
+func TestHandler_Update(t *testing.T) {
 	tests := []struct {
 		name           string
 		giveRequest    *http.Request
@@ -48,7 +57,7 @@ func TestHandler_ServeHTTP(t *testing.T) {
 			h := &Handler{
 				s: &mockStorage{},
 			}
-			h.ServeHTTP(w, tt.giveRequest)
+			h.Update(w, tt.giveRequest)
 			res := w.Result()
 			defer res.Body.Close()
 

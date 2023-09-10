@@ -14,7 +14,7 @@ func (m *mockStorage) UpdateGauge(name string, value float64) error {
 	return nil
 }
 
-func TestHandler_ServeHTTP(t *testing.T) {
+func TestHandler_Update(t *testing.T) {
 
 	tests := []struct {
 		name           string
@@ -49,7 +49,7 @@ func TestHandler_ServeHTTP(t *testing.T) {
 			h := &Handler{
 				s: &mockStorage{},
 			}
-			h.ServeHTTP(w, tt.giveRequest)
+			h.Update(w, tt.giveRequest)
 			res := w.Result()
 			defer res.Body.Close()
 

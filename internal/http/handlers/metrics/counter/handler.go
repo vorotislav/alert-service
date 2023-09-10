@@ -2,13 +2,15 @@ package counter
 
 import (
 	"fmt"
+	"github.com/go-chi/chi/v5"
 	"net/http"
-	"regexp"
 	"strconv"
 )
 
 type Storage interface {
 	UpdateCounter(name string, value int64) error
+	GetCounterValue(name string) (int64, error)
+	AllCounterMetrics() ([]byte, error)
 }
 
 type Handler struct {
@@ -21,24 +23,15 @@ func NewHandler(storage Storage) *Handler {
 	}
 }
 
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 
 		return
 	}
 
-	re := regexp.MustCompile(`^/update/counter/(?P<name>\w+)/(?P<value>[^/]+)$`)
-	values := re.FindStringSubmatch(r.RequestURI)
-
-	if len(values) != 3 {
-		http.Error(w, "the path is specified incorrectly", http.StatusNotFound)
-
-		return
-	}
-
-	metricName := values[1]
-	metricValue, err := strconv.ParseInt(values[2], 10, 64)
+	metricName := chi.URLParam(r, "metricName")
+	metricValue, err := strconv.ParseInt(chi.URLParam(r, "metricValue"), 10, 64)
 
 	if err != nil {
 		http.Error(w, fmt.Errorf("cannot convert metric value: %w", err).Error(), http.StatusBadRequest)
@@ -54,4 +47,30 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/plain")
 	w.Header().Add("Content-Type", "charset=utf-8")
+}
+
+func (h *Handler) Value(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+
+		return
+	}
+
+	metricName := chi.URLParam(r, "metricName")
+	value, err := h.s.GetCounterValue(metricName)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("metric %s if not found", metricName), http.StatusNotFound)
+
+		return
+	}
+
+	w.Write([]byte(fmt.Sprintf("%d", value)))
+	w.WriteHeader(http.StatusOK)
+
+	w.Header().Set("Content-Type", "text/plain")
+	w.Header().Add("Content-Type", "charset=utf-8")
+}
+
+func (h *Handler) AllMetrics() ([]byte, error) {
+	return h.s.AllCounterMetrics()
 }
