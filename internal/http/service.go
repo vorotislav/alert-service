@@ -1,6 +1,7 @@
 package http
 
 import (
+	"fmt"
 	"github.com/go-chi/chi/v5"
 	"net/http"
 
@@ -15,7 +16,7 @@ type Service struct {
 	gaugeHandler   *gauge.Handler
 }
 
-func NewService() *Service {
+func NewService(addr string) *Service {
 	r := chi.NewRouter()
 
 	store := storage.NewMemStorage()
@@ -88,7 +89,7 @@ func NewService() *Service {
 	})
 
 	server := &http.Server{
-		Addr:    ":8080",
+		Addr:    addr,
 		Handler: r,
 	}
 
@@ -100,5 +101,6 @@ func NewService() *Service {
 }
 
 func (s *Service) Run() error {
+	fmt.Println("Running server on", s.server.Addr)
 	return s.server.ListenAndServe()
 }
