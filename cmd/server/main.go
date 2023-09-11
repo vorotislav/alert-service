@@ -6,7 +6,9 @@ import (
 )
 
 func main() {
-	s := http.NewService()
+	parseFlag()
+
+	s := http.NewService(flagRunAddr)
 
 	log.Fatal(s.Run())
 }
