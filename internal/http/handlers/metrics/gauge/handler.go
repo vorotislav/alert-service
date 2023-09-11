@@ -14,12 +14,12 @@ type Storage interface {
 }
 
 type Handler struct {
-	s Storage
+	Storage Storage
 }
 
 func NewHandler(storage Storage) *Handler {
 	return &Handler{
-		s: storage,
+		Storage: storage,
 	}
 }
 
@@ -41,7 +41,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.s.UpdateGauge(metricName, metricValue); err != nil {
+	if err := h.Storage.UpdateGauge(metricName, metricValue); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 
 		return
@@ -61,7 +61,7 @@ func (h *Handler) Value(w http.ResponseWriter, r *http.Request) {
 	}
 
 	metricName := chi.URLParam(r, "metricName")
-	value, err := h.s.GetGaugeValue(metricName)
+	value, err := h.Storage.GetGaugeValue(metricName)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("metric %s if not found", metricName), http.StatusNotFound)
 
@@ -76,5 +76,5 @@ func (h *Handler) Value(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) AllMetrics() ([]byte, error) {
-	return h.s.AllGaugeMetrics()
+	return h.Storage.AllGaugeMetrics()
 }
