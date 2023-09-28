@@ -5,6 +5,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/vorotislav/alert-service/internal/http/middlewares"
+	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -32,6 +34,9 @@ func (m *mockStorage) AllCounterMetrics() ([]byte, error) {
 }
 
 func TestHandler_Value(t *testing.T) {
+	log, err := zap.NewDevelopment()
+	require.NoError(t, err)
+
 	tests := []struct {
 		name           string
 		giveMethod     string
@@ -58,8 +63,10 @@ func TestHandler_Value(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			r := chi.NewRouter()
 			h := &Handler{
-				s: &mockStorage{},
+				log: log,
+				s:   &mockStorage{},
 			}
+			r.Use(middlewares.New(log))
 
 			r.Route("/value", func(r chi.Router) {
 				r.Route("/counter", func(r chi.Router) {
@@ -99,6 +106,9 @@ func TestHandler_Value(t *testing.T) {
 }
 
 func TestHandler_Update(t *testing.T) {
+	log, err := zap.NewDevelopment()
+	require.NoError(t, err)
+
 	tests := []struct {
 		name           string
 		giveMethod     string
@@ -134,8 +144,11 @@ func TestHandler_Update(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			r := chi.NewRouter()
 			h := &Handler{
-				s: &mockStorage{},
+				log: log,
+				s:   &mockStorage{},
 			}
+
+			r.Use(middlewares.New(log))
 
 			r.Route("/update", func(r chi.Router) {
 				r.Route("/counter", func(r chi.Router) {
