@@ -109,9 +109,9 @@ func sendMetric[T uint64 | float64](serverURL string, metric Metric[T]) {
 		http.NoBody)
 
 	if err != nil {
-		log.Printf(fmt.Sprintf("cannot send metric: %s\n", err.Error()))
+		log.Printf("cannot send metric: %s\n", err.Error())
 	} else {
-		log.Printf(fmt.Sprintf("send metric: [%s] value: [%v]\n", metric.name, metric.value))
+		log.Printf("send metric: [%s] value: [%v]\n", metric.name, metric.value)
 	}
 
 	if resp != nil {
