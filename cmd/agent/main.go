@@ -2,125 +2,119 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"math/rand"
 	"net/http"
 	"runtime"
 	"time"
 )
 
+type Metric[T uint64 | float64] struct {
+	name       string
+	metricType string
+	value      T
+}
+
+func readIMetrics(pollCount int) []Metric[uint64] {
+	ms := runtime.MemStats{}
+	runtime.ReadMemStats(&ms)
+
+	return []Metric[uint64]{
+		{name: "Alloc", metricType: "gauge", value: ms.Alloc},
+		{name: "BuckHashSys", metricType: "gauge", value: ms.BuckHashSys},
+		{name: "Frees", metricType: "gauge", value: ms.Frees},
+		{name: "GCSys", metricType: "gauge", value: ms.GCSys},
+		{name: "HeapAlloc", metricType: "gauge", value: ms.HeapAlloc},
+		{name: "HeapIdle", metricType: "gauge", value: ms.HeapIdle},
+		{name: "HeapInuse", metricType: "gauge", value: ms.HeapInuse},
+		{name: "HeapObjects", metricType: "gauge", value: ms.HeapObjects},
+		{name: "HeapReleased", metricType: "gauge", value: ms.HeapReleased},
+		{name: "HeapSys", metricType: "gauge", value: ms.HeapSys},
+		{name: "LastGC", metricType: "gauge", value: ms.LastGC},
+		{name: "Lookups", metricType: "gauge", value: ms.Lookups},
+		{name: "MCacheInuse", metricType: "gauge", value: ms.MCacheInuse},
+		{name: "MCacheSys", metricType: "gauge", value: ms.MCacheSys},
+		{name: "MSpanInuse", metricType: "gauge", value: ms.MSpanInuse},
+		{name: "MSpanSys", metricType: "gauge", value: ms.MSpanSys},
+		{name: "Mallocs", metricType: "gauge", value: ms.Mallocs},
+		{name: "NextGC", metricType: "gauge", value: ms.NextGC},
+		{name: "NumForcedGC", metricType: "gauge", value: uint64(ms.NumForcedGC)},
+		{name: "NumGC", metricType: "gauge", value: uint64(ms.NumGC)},
+		{name: "OtherSys", metricType: "gauge", value: ms.OtherSys},
+		{name: "PauseTotalNs", metricType: "gauge", value: ms.PauseTotalNs},
+		{name: "StackInuse", metricType: "gauge", value: ms.StackInuse},
+		{name: "StackSys", metricType: "gauge", value: ms.StackSys},
+		{name: "Sys", metricType: "gauge", value: ms.Sys},
+		{name: "TotalAlloc", metricType: "gauge", value: ms.TotalAlloc},
+		{name: "PollCount", metricType: "counter", value: uint64(pollCount)},
+	}
+}
+
+func readFMetrics() []Metric[float64] {
+	ms := runtime.MemStats{}
+	runtime.ReadMemStats(&ms)
+
+	return []Metric[float64]{
+		{
+			name:       "GCCPUFraction",
+			metricType: "gauge",
+			value:      ms.GCCPUFraction,
+		},
+		{
+			name:       "RandomValue",
+			metricType: "gauge",
+			value:      rand.Float64(),
+		},
+	}
+}
+
 func main() {
 
 	parseFlags()
-	serverURL := "http://" + flagServerAddr
+	serverURL := fmt.Sprintf("http://%s", flagServerAddr)
 
 	fmt.Println("server url: ", serverURL)
 	fmt.Println("report interval: ", flagReportInterval)
 	fmt.Println("poll interval: ", flagPollInterval)
 
-	ms := runtime.MemStats{}
 	pollCount := 0
-	var randomValue float64
 	lastReportTime := time.Now()
 	for {
 		pollCount += 1
-		runtime.ReadMemStats(&ms)
-		randomValue = rand.Float64()
 
 		if time.Now().After(lastReportTime.Add(time.Duration(flagReportInterval) * time.Second)) {
-			sendMetrics(serverURL, ms, pollCount, randomValue)
+			dMetrics := readIMetrics(pollCount)
+			fMetrics := readFMetrics()
+
+			sendMetrics(serverURL, dMetrics)
+			sendMetrics(serverURL, fMetrics)
 			lastReportTime = time.Now()
 		}
 
 		time.Sleep(time.Duration(flagPollInterval) * time.Second)
 	}
-
 }
 
-func sendMetrics(serverURL string, ms runtime.MemStats, pollCount int, randomValue float64) {
-	resp, _ := http.Post(fmt.Sprintf(serverURL+"/update/gauge/Alloc/%d", ms.Alloc), "text/plain", http.NoBody)
-	resp.Body.Close()
+func sendMetrics[T uint64 | float64](serverURL string, metrics []Metric[T]) {
+	for _, m := range metrics {
+		m := m
+		sendMetric(serverURL, m)
+	}
+}
 
-	resp, _ = http.Post(fmt.Sprintf(serverURL+"/update/gauge/BuckHashSys/%d", ms.BuckHashSys), "text/plain", http.NoBody)
-	resp.Body.Close()
+func sendMetric[T uint64 | float64](serverURL string, metric Metric[T]) {
+	resp, err := http.Post(
+		fmt.Sprintf("%s/update/%s/%s/%v", serverURL, metric.metricType, metric.name, metric.value),
+		"text/plain",
+		http.NoBody)
 
-	resp, _ = http.Post(fmt.Sprintf(serverURL+"/update/gauge/Frees/%d", ms.Frees), "text/plain", http.NoBody)
-	resp.Body.Close()
+	if err != nil {
+		log.Println(fmt.Sprintf("cannot send metric: %s", err.Error()))
+	} else {
+		log.Println(fmt.Sprintf("send metric: [%s] value: [%v]", metric.name, metric.value))
+	}
 
-	resp, _ = http.Post(fmt.Sprintf(serverURL+"/update/gauge/GCCPUFraction/%f", ms.GCCPUFraction), "text/plain", http.NoBody)
-	resp.Body.Close()
-
-	resp, _ = http.Post(fmt.Sprintf(serverURL+"/update/gauge/GCSys/%d", ms.GCSys), "text/plain", http.NoBody)
-	resp.Body.Close()
-
-	resp, _ = http.Post(fmt.Sprintf(serverURL+"/update/gauge/HeapAlloc/%d", ms.HeapAlloc), "text/plain", http.NoBody)
-	resp.Body.Close()
-
-	resp, _ = http.Post(fmt.Sprintf(serverURL+"/update/gauge/HeapIdle/%d", ms.HeapIdle), "text/plain", http.NoBody)
-	resp.Body.Close()
-
-	resp, _ = http.Post(fmt.Sprintf(serverURL+"/update/gauge/HeapInuse/%d", ms.HeapInuse), "text/plain", http.NoBody)
-	resp.Body.Close()
-
-	resp, _ = http.Post(fmt.Sprintf(serverURL+"/update/gauge/HeapObjects/%d", ms.HeapObjects), "text/plain", http.NoBody)
-	resp.Body.Close()
-
-	resp, _ = http.Post(fmt.Sprintf(serverURL+"/update/gauge/HeapReleased/%d", ms.HeapReleased), "text/plain", http.NoBody)
-	resp.Body.Close()
-
-	resp, _ = http.Post(fmt.Sprintf(serverURL+"/update/gauge/HeapSys/%d", ms.HeapSys), "text/plain", http.NoBody)
-	resp.Body.Close()
-
-	resp, _ = http.Post(fmt.Sprintf(serverURL+"/update/gauge/LastGC/%d", ms.LastGC), "text/plain", http.NoBody)
-	resp.Body.Close()
-
-	resp, _ = http.Post(fmt.Sprintf(serverURL+"/update/gauge/Lookups/%d", ms.Lookups), "text/plain", http.NoBody)
-	resp.Body.Close()
-
-	resp, _ = http.Post(fmt.Sprintf(serverURL+"/update/gauge/MCacheInuse/%d", ms.MCacheInuse), "text/plain", http.NoBody)
-	resp.Body.Close()
-
-	resp, _ = http.Post(fmt.Sprintf(serverURL+"/update/gauge/MCacheSys/%d", ms.MCacheSys), "text/plain", http.NoBody)
-	resp.Body.Close()
-
-	resp, _ = http.Post(fmt.Sprintf(serverURL+"/update/gauge/MSpanInuse/%d", ms.MSpanInuse), "text/plain", http.NoBody)
-	resp.Body.Close()
-
-	resp, _ = http.Post(fmt.Sprintf(serverURL+"/update/gauge/MSpanSys/%d", ms.MSpanSys), "text/plain", http.NoBody)
-	resp.Body.Close()
-
-	resp, _ = http.Post(fmt.Sprintf(serverURL+"/update/gauge/Mallocs/%d", ms.Mallocs), "text/plain", http.NoBody)
-	resp.Body.Close()
-
-	resp, _ = http.Post(fmt.Sprintf(serverURL+"/update/gauge/NextGC/%d", ms.NextGC), "text/plain", http.NoBody)
-	resp.Body.Close()
-
-	resp, _ = http.Post(fmt.Sprintf(serverURL+"/update/gauge/NumForcedGC/%d", ms.NumForcedGC), "text/plain", http.NoBody)
-	resp.Body.Close()
-
-	resp, _ = http.Post(fmt.Sprintf(serverURL+"/update/gauge/NumGC/%d", ms.NumGC), "text/plain", http.NoBody)
-	resp.Body.Close()
-
-	resp, _ = http.Post(fmt.Sprintf(serverURL+"/update/gauge/OtherSys/%d", ms.OtherSys), "text/plain", http.NoBody)
-	resp.Body.Close()
-
-	resp, _ = http.Post(fmt.Sprintf(serverURL+"/update/gauge/PauseTotalNs/%d", ms.PauseTotalNs), "text/plain", http.NoBody)
-	resp.Body.Close()
-
-	resp, _ = http.Post(fmt.Sprintf(serverURL+"/update/gauge/StackInuse/%d", ms.StackInuse), "text/plain", http.NoBody)
-	resp.Body.Close()
-
-	resp, _ = http.Post(fmt.Sprintf(serverURL+"/update/gauge/StackSys/%d", ms.StackSys), "text/plain", http.NoBody)
-	resp.Body.Close()
-
-	resp, _ = http.Post(fmt.Sprintf(serverURL+"/update/gauge/Sys/%d", ms.Sys), "text/plain", http.NoBody)
-	resp.Body.Close()
-
-	resp, _ = http.Post(fmt.Sprintf(serverURL+"/update/gauge/TotalAlloc/%d", ms.TotalAlloc), "text/plain", http.NoBody)
-	resp.Body.Close()
-
-	resp, _ = http.Post(fmt.Sprintf(serverURL+"/update/counter/PollCount/%d", pollCount), "text/plain", http.NoBody)
-	resp.Body.Close()
-
-	resp, _ = http.Post(fmt.Sprintf(serverURL+"/update/gauge/RandomValue/%f", randomValue), "text/plain", http.NoBody)
-	resp.Body.Close()
+	if resp != nil {
+		resp.Body.Close()
+	}
 }

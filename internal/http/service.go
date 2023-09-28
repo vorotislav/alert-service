@@ -2,28 +2,34 @@ package http
 
 import (
 	"fmt"
-	"github.com/go-chi/chi/v5"
 	"net/http"
 
 	"github.com/vorotislav/alert-service/internal/http/handlers/metrics/counter"
 	"github.com/vorotislav/alert-service/internal/http/handlers/metrics/gauge"
+	"github.com/vorotislav/alert-service/internal/http/middlewares"
 	"github.com/vorotislav/alert-service/internal/storage"
+
+	"github.com/go-chi/chi/v5"
+	"go.uber.org/zap"
 )
 
 type Service struct {
+	logger         *zap.Logger
 	server         *http.Server
 	counterHandler *counter.Handler
 	gaugeHandler   *gauge.Handler
 }
 
-func NewService(addr string) *Service {
+func NewService(log *zap.Logger, addr string) *Service {
 	r := chi.NewRouter()
+
+	r.Use(middlewares.New(log))
 
 	store := storage.NewMemStorage()
 
-	counterMetricsHandler := counter.NewHandler(store)
+	counterMetricsHandler := counter.NewHandler(log, store)
 
-	gaugeMetricsHandler := gauge.NewHandler(store)
+	gaugeMetricsHandler := gauge.NewHandler(log, store)
 
 	r.Route("/update", func(r chi.Router) {
 		r.Route("/counter", func(r chi.Router) {
@@ -71,18 +77,36 @@ func NewService(addr string) *Service {
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		respCounter, err := counterMetricsHandler.AllMetrics()
 		if err != nil {
+			log.Info("Failed to get all counter metric",
+				zap.Int("status code", http.StatusInternalServerError),
+				zap.Int("size", 0))
+
 			http.Error(w, "", http.StatusInternalServerError)
 		}
 
 		respGauge, err := gaugeMetricsHandler.AllMetrics()
 		if err != nil {
+			log.Info("Failed to get all gauge metric",
+				zap.Int("status code", http.StatusInternalServerError),
+				zap.Int("size", 0))
+
 			http.Error(w, "", http.StatusInternalServerError)
 		}
 
 		resp := append(respCounter, respGauge...)
 
-		w.Write(resp)
+		size, err := w.Write(resp)
+		if err != nil {
+			log.Info("Failed to get all metric",
+				zap.Int("status code", http.StatusInternalServerError),
+				zap.Int("size", 0),
+				zap.String("error", err.Error()))
+		}
 		w.WriteHeader(http.StatusOK)
+
+		log.Info("Get all metric",
+			zap.Int("status code", http.StatusOK),
+			zap.Int("size", size))
 
 		w.Header().Set("Content-Type", "text/plain")
 		w.Header().Add("Content-Type", "charset=utf-8")
@@ -94,6 +118,7 @@ func NewService(addr string) *Service {
 	}
 
 	return &Service{
+		logger:         log,
 		server:         server,
 		counterHandler: counterMetricsHandler,
 		gaugeHandler:   gaugeMetricsHandler,
