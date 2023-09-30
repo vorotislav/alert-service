@@ -22,12 +22,12 @@ func NewMemStorage() *MemStorage {
 	return store
 }
 
-func (m *MemStorage) UpdateCounter(name string, value int64) error {
+func (m *MemStorage) UpdateCounter(name string, value int64) (int64, error) {
 	oldValue := m.counterMetrics[name]
 	oldValue += value
 	m.counterMetrics[name] = oldValue
 
-	return nil
+	return oldValue, nil
 }
 
 func (m *MemStorage) GetCounterValue(name string) (int64, error) {
@@ -48,10 +48,10 @@ func (m *MemStorage) AllCounterMetrics() ([]byte, error) {
 	return resp, nil
 }
 
-func (m *MemStorage) UpdateGauge(name string, value float64) error {
+func (m *MemStorage) UpdateGauge(name string, value float64) (float64, error) {
 	m.gaugeMetrics[name] = value
 
-	return nil
+	return value, nil
 }
 
 func (m *MemStorage) GetGaugeValue(name string) (float64, error) {

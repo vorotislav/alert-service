@@ -2,10 +2,10 @@ package http
 
 import (
 	"fmt"
+	"github.com/vorotislav/alert-service/internal/http/handlers/update"
+	"github.com/vorotislav/alert-service/internal/http/handlers/value"
 	"net/http"
 
-	"github.com/vorotislav/alert-service/internal/http/handlers/metrics/counter"
-	"github.com/vorotislav/alert-service/internal/http/handlers/metrics/gauge"
 	"github.com/vorotislav/alert-service/internal/http/middlewares"
 	"github.com/vorotislav/alert-service/internal/storage"
 
@@ -14,10 +14,10 @@ import (
 )
 
 type Service struct {
-	logger         *zap.Logger
-	server         *http.Server
-	counterHandler *counter.Handler
-	gaugeHandler   *gauge.Handler
+	logger        *zap.Logger
+	server        *http.Server
+	updateHandler *update.Handler
+	valueHandler  *value.Handler
 }
 
 func NewService(log *zap.Logger, addr string) *Service {
@@ -27,55 +27,30 @@ func NewService(log *zap.Logger, addr string) *Service {
 
 	store := storage.NewMemStorage()
 
-	counterMetricsHandler := counter.NewHandler(log, store)
+	updateMetricHandler := update.NewHandler(log, store)
 
-	gaugeMetricsHandler := gauge.NewHandler(log, store)
+	valueMetricHandler := value.NewHandler(log, store)
 
 	r.Route("/update", func(r chi.Router) {
-		r.Route("/counter", func(r chi.Router) {
-			r.Route("/{metricName}", func(r chi.Router) {
-				r.Post("/{metricValue}", counterMetricsHandler.Update)
-			})
-		})
-
-		r.Route("/gauge", func(r chi.Router) {
-			r.Route("/{metricName}", func(r chi.Router) {
-				r.Post("/{metricValue}", gaugeMetricsHandler.Update)
-			})
-		})
-
 		r.Route("/{metricType}", func(r chi.Router) {
 			r.Route("/{metricName}", func(r chi.Router) {
-				r.Post("/{metricValue}", func(writer http.ResponseWriter, request *http.Request) {
-					http.Error(writer, "", http.StatusBadRequest)
-				})
+				r.Post("/{metricValue}", updateMetricHandler.Update)
 			})
 		})
+
+		r.Post("/", updateMetricHandler.UpdateJSON)
 	})
 
 	r.Route("/value", func(r chi.Router) {
-		r.Route("/counter", func(r chi.Router) {
-			r.Route("/{metricName}", func(r chi.Router) {
-				r.Get("/", counterMetricsHandler.Value)
-			})
-		})
-
-		r.Route("/gauge", func(r chi.Router) {
-			r.Route("/{metricName}", func(r chi.Router) {
-				r.Get("/", gaugeMetricsHandler.Value)
-			})
-
-		})
 		r.Route("/{metricType}", func(r chi.Router) {
-			r.Get("/{metricName}", func(writer http.ResponseWriter, request *http.Request) {
-				http.Error(writer, "", http.StatusBadRequest)
-			})
+			r.Get("/{metricName}", valueMetricHandler.Value)
 		})
 
+		r.Post("/", valueMetricHandler.ValueJSON)
 	})
 
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		respCounter, err := counterMetricsHandler.AllMetrics()
+		resp, err := valueMetricHandler.AllMetrics()
 		if err != nil {
 			log.Info("Failed to get all counter metric",
 				zap.Int("status code", http.StatusInternalServerError),
@@ -83,17 +58,6 @@ func NewService(log *zap.Logger, addr string) *Service {
 
 			http.Error(w, "", http.StatusInternalServerError)
 		}
-
-		respGauge, err := gaugeMetricsHandler.AllMetrics()
-		if err != nil {
-			log.Info("Failed to get all gauge metric",
-				zap.Int("status code", http.StatusInternalServerError),
-				zap.Int("size", 0))
-
-			http.Error(w, "", http.StatusInternalServerError)
-		}
-
-		resp := append(respCounter, respGauge...)
 
 		size, err := w.Write(resp)
 		if err != nil {
@@ -118,10 +82,10 @@ func NewService(log *zap.Logger, addr string) *Service {
 	}
 
 	return &Service{
-		logger:         log,
-		server:         server,
-		counterHandler: counterMetricsHandler,
-		gaugeHandler:   gaugeMetricsHandler,
+		logger:        log,
+		server:        server,
+		updateHandler: updateMetricHandler,
+		valueHandler:  valueMetricHandler,
 	}
 }
 
