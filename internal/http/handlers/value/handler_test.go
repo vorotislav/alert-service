@@ -9,11 +9,13 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/vorotislav/alert-service/internal/http/middlewares"
 	"github.com/vorotislav/alert-service/internal/model"
+	"github.com/vorotislav/alert-service/internal/utils"
 	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -220,7 +222,16 @@ func TestHandler_ValueJSON(t *testing.T) {
 			assert.Equal(t, tc.wantStatusCode, res.StatusCode)
 			if res.StatusCode == http.StatusOK {
 				m := model.Metrics{}
-				err := json.NewDecoder(res.Body).Decode(&m)
+
+				bodyRaw, err := io.ReadAll(res.Body)
+				require.NoError(t, err)
+
+				if strings.Contains(res.Header.Get("Content-Encoding"), "gzip") {
+					bodyRaw, err = utils.Decompress(bodyRaw)
+					require.NoError(t, err)
+				}
+
+				err = json.Unmarshal(bodyRaw, &m)
 				require.NoError(t, err)
 				assert.Equal(t, tc.wantMetric, m)
 			}

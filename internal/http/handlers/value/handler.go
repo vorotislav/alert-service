@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/vorotislav/alert-service/internal/model"
-	"github.com/vorotislav/alert-service/internal/utils"
 	"go.uber.org/zap"
 	"net/http"
-	"strings"
 )
 
 const (
@@ -194,17 +192,6 @@ func (h *Handler) ValueJSON(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-
-	acceptEncoding := r.Header.Get("Accept-Encoding")
-	if strings.Contains(acceptEncoding, "gzip") {
-		compressResp, err := utils.Compress(resp)
-		if err != nil {
-			h.log.Info("Error of compress data",
-				zap.Error(err))
-		} else {
-			resp = compressResp
-		}
-	}
 
 	size, err := w.Write(resp)
 	if err != nil {

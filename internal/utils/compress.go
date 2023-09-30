@@ -26,3 +26,21 @@ func Compress(data []byte) ([]byte, error) {
 
 	return b.Bytes(), nil
 }
+
+func Decompress(data []byte) ([]byte, error) {
+	// переменная r будет читать входящие данные и распаковывать их
+	r, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("failed init compress reader: %w", err)
+	}
+	defer r.Close()
+
+	var b bytes.Buffer
+	// в переменную b записываются распакованные данные
+	_, err = b.ReadFrom(r)
+	if err != nil {
+		return nil, fmt.Errorf("failed decompress data: %v", err)
+	}
+
+	return b.Bytes(), nil
+}
