@@ -24,6 +24,7 @@ func NewService(log *zap.Logger, addr string) *Service {
 	r := chi.NewRouter()
 
 	r.Use(middlewares.New(log))
+	r.Use(middlewares.CompressMiddleware)
 
 	store := storage.NewMemStorage()
 

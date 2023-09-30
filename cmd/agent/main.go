@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"github.com/vorotislav/alert-service/internal/model"
@@ -132,11 +133,29 @@ func sendMetric[T uint64 | float64](serverURL string, metric Metric[T]) {
 		return
 	}
 
-	resp, err := http.Post(
-		fmt.Sprintf("%s/update", serverURL),
-		"application/json",
-		bytes.NewBuffer(raw))
+	compressRaw, err := compress(raw)
+	if err != nil {
+		log.Printf("cannot compress data: %s\n", err.Error())
 
+		return
+	}
+
+	req, err := http.NewRequest(
+		http.MethodPost,
+		fmt.Sprintf("%s/update", serverURL),
+		bytes.NewBuffer(compressRaw),
+	)
+	if err != nil {
+		log.Printf("cannot request prepare: %s\n", err.Error())
+
+		return
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept-Encoding", "gzip")
+	req.Header.Set("Content-Encoding", "gzip")
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		log.Printf("cannot send metric: %s\n", err.Error())
 	} else {
@@ -146,4 +165,25 @@ func sendMetric[T uint64 | float64](serverURL string, metric Metric[T]) {
 	if resp != nil {
 		resp.Body.Close()
 	}
+}
+
+func compress(data []byte) ([]byte, error) {
+	var b bytes.Buffer
+
+	gw, err := gzip.NewWriterLevel(&b, gzip.BestCompression)
+	if err != nil {
+		return nil, fmt.Errorf("failed init compress writer: %w", err)
+	}
+
+	_, err = gw.Write(data)
+	if err != nil {
+		return nil, fmt.Errorf("failed write data to compress temporary buffer: %w", err)
+	}
+
+	err = gw.Close()
+	if err != nil {
+		return nil, fmt.Errorf("failed compress data: %w", err)
+	}
+
+	return b.Bytes(), nil
 }
