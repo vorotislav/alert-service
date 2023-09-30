@@ -191,7 +191,7 @@ func (h *Handler) ValueJSON(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Content-Type", "text/html")
+	w.Header().Add("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
 
 	size, err := w.Write(resp)
