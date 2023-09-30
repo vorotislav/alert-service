@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/vorotislav/alert-service/internal/model"
+	"go.uber.org/zap"
 	"net/http"
 	"strconv"
-
-	"go.uber.org/zap"
 )
 
 const (

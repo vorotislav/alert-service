@@ -2,10 +2,10 @@ package main
 
 import (
 	"bytes"
-	"compress/gzip"
 	"encoding/json"
 	"fmt"
 	"github.com/vorotislav/alert-service/internal/model"
+	"github.com/vorotislav/alert-service/internal/utils"
 	"log"
 	"math/rand"
 	"net/http"
@@ -133,7 +133,7 @@ func sendMetric[T uint64 | float64](serverURL string, metric Metric[T]) {
 		return
 	}
 
-	compressRaw, err := compress(raw)
+	compressRaw, err := utils.Compress(raw)
 	if err != nil {
 		log.Printf("cannot compress data: %s\n", err.Error())
 
@@ -165,25 +165,4 @@ func sendMetric[T uint64 | float64](serverURL string, metric Metric[T]) {
 	if resp != nil {
 		resp.Body.Close()
 	}
-}
-
-func compress(data []byte) ([]byte, error) {
-	var b bytes.Buffer
-
-	gw, err := gzip.NewWriterLevel(&b, gzip.BestCompression)
-	if err != nil {
-		return nil, fmt.Errorf("failed init compress writer: %w", err)
-	}
-
-	_, err = gw.Write(data)
-	if err != nil {
-		return nil, fmt.Errorf("failed write data to compress temporary buffer: %w", err)
-	}
-
-	err = gw.Close()
-	if err != nil {
-		return nil, fmt.Errorf("failed compress data: %w", err)
-	}
-
-	return b.Bytes(), nil
 }
