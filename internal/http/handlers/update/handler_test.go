@@ -85,6 +85,7 @@ func TestHandler_Update(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			r := chi.NewRouter()
@@ -167,6 +168,7 @@ func TestHandler_UpdateJSON(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			r := chi.NewRouter()
 			h := &Handler{
