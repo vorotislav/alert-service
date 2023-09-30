@@ -11,7 +11,6 @@ fmt: ## Format the source files
 test: dep ## Run tests
 	go test -timeout 5m -race -covermode=atomic -coverprofile=.coverage.out ./... && \
 	go tool cover -func=.coverage.out | tail -n1 | awk '{print "Total test coverage: " $$3}'
-	gocover-cobertura < .coverage.out > .coverage.xml
 	@rm .coverage.out
 
 cover: dep ## Run app tests with coverage report

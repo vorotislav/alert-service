@@ -203,6 +203,7 @@ func TestHandler_ValueJSON(t *testing.T) {
 				storage: &stubStorage{},
 			}
 			r.Use(middlewares.New(log))
+			r.Use(middlewares.CompressMiddleware)
 
 			r.Route("/value", func(r chi.Router) {
 				r.Post("/", h.ValueJSON)
