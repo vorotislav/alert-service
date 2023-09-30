@@ -57,8 +57,13 @@ func NewService(log *zap.Logger, addr string) *Service {
 				zap.Int("status code", http.StatusInternalServerError),
 				zap.Int("size", 0))
 
-			http.Error(w, "", http.StatusInternalServerError)
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Header().Set("Content-Type", "text/html")
+			return
 		}
+
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusOK)
 
 		size, err := w.Write(resp)
 		if err != nil {
@@ -67,14 +72,10 @@ func NewService(log *zap.Logger, addr string) *Service {
 				zap.Int("size", 0),
 				zap.String("error", err.Error()))
 		}
-		w.WriteHeader(http.StatusOK)
 
 		log.Info("Get all metric",
 			zap.Int("status code", http.StatusOK),
 			zap.Int("size", size))
-
-		w.Header().Set("Content-Type", "text/plain")
-		w.Header().Add("Content-Type", "charset=utf-8")
 	})
 
 	server := &http.Server{

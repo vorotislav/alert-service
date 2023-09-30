@@ -101,6 +101,7 @@ func (h *Handler) Value(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	w.Header().Set("Content-Type", "text/plain")
+	w.Header().Add("Content-Type", "text/html")
 	w.Header().Add("Content-Type", "charset=utf-8")
 }
 
