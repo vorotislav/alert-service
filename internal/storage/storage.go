@@ -119,25 +119,26 @@ func (m *MemStorage) AllGaugeMetrics() ([]byte, error) {
 }
 
 func (m *MemStorage) writeMetrics() error {
-	if err := m.file.Truncate(0); err != nil {
-		m.log.Info("cannot truncate file", zap.Error(err))
-	}
+	//if err := m.file.Truncate(0); err != nil {
+	//	m.log.Info("cannot truncate file", zap.Error(err))
+	//}
 	if err := m.encoder.Encode(m.CounterMetrics); err != nil {
-		return fmt.Errorf("cannot write counter metrics")
+		return fmt.Errorf("cannot write counter metrics: %w", err)
 	}
 	if err := m.encoder.Encode(m.GaugeMetrics); err != nil {
-		return fmt.Errorf("cannot write gauge metrics")
+		return fmt.Errorf("cannot write gauge metrics: %w", err)
 	}
 
+	m.file.Seek(0, 0)
 	return nil
 }
 
 func (m *MemStorage) readMetrics() error {
 	if err := m.decoder.Decode(&m.CounterMetrics); err != nil {
-		return fmt.Errorf("cannot read counter metrics")
+		return fmt.Errorf("cannot read counter metrics: %w", err)
 	}
 	if err := m.decoder.Decode(&m.GaugeMetrics); err != nil {
-		return fmt.Errorf("cannot read gauge metrics")
+		return fmt.Errorf("cannot read gauge metrics: %w", err)
 	}
 	return nil
 }
