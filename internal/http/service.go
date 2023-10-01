@@ -1,9 +1,11 @@
 package http
 
 import (
+	"context"
 	"fmt"
 	"github.com/vorotislav/alert-service/internal/http/handlers/update"
 	"github.com/vorotislav/alert-service/internal/http/handlers/value"
+	"github.com/vorotislav/alert-service/internal/settings"
 	"net/http"
 
 	"github.com/vorotislav/alert-service/internal/http/middlewares"
@@ -18,15 +20,19 @@ type Service struct {
 	server        *http.Server
 	updateHandler *update.Handler
 	valueHandler  *value.Handler
+	store         *storage.MemStorage
 }
 
-func NewService(log *zap.Logger, addr string) *Service {
+func NewService(ctx context.Context, log *zap.Logger, set *settings.Settings) (*Service, error) {
 	r := chi.NewRouter()
 
 	r.Use(middlewares.New(log))
 	r.Use(middlewares.CompressMiddleware)
 
-	store := storage.NewMemStorage()
+	store, err := storage.NewMemStorage(ctx, log, set)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create service: %w", err)
+	}
 
 	updateMetricHandler := update.NewHandler(log, store)
 
@@ -79,19 +85,20 @@ func NewService(log *zap.Logger, addr string) *Service {
 	})
 
 	server := &http.Server{
-		Addr:    addr,
+		Addr:    set.Address,
 		Handler: r,
 	}
 
 	return &Service{
 		logger:        log,
 		server:        server,
+		store:         store,
 		updateHandler: updateMetricHandler,
 		valueHandler:  valueMetricHandler,
-	}
+	}, nil
 }
 
 func (s *Service) Run() error {
-	fmt.Println("Running server on", s.server.Addr)
+	s.logger.Info("Running server on", zap.String("address", s.server.Addr))
 	return s.server.ListenAndServe()
 }
