@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/vorotislav/alert-service/internal/http/handlers/update"
 	"github.com/vorotislav/alert-service/internal/http/handlers/value"
-	"github.com/vorotislav/alert-service/internal/settings"
+	"github.com/vorotislav/alert-service/internal/settings/server"
 	"net/http"
 
 	"github.com/vorotislav/alert-service/internal/http/middlewares"
@@ -23,7 +23,7 @@ type Service struct {
 	store         *storage.MemStorage
 }
 
-func NewService(ctx context.Context, log *zap.Logger, set *settings.Settings) (*Service, error) {
+func NewService(ctx context.Context, log *zap.Logger, set *server.Settings) (*Service, error) {
 	r := chi.NewRouter()
 
 	r.Use(middlewares.New(log))
@@ -59,7 +59,7 @@ func NewService(ctx context.Context, log *zap.Logger, set *settings.Settings) (*
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		resp, err := valueMetricHandler.AllMetrics()
 		if err != nil {
-			log.Info("Failed to get all counter metric",
+			log.Info("Failed to get all counter metrics",
 				zap.Int("status code", http.StatusInternalServerError),
 				zap.Int("size", 0))
 
@@ -73,25 +73,25 @@ func NewService(ctx context.Context, log *zap.Logger, set *settings.Settings) (*
 
 		size, err := w.Write(resp)
 		if err != nil {
-			log.Info("Failed to get all metric",
+			log.Info("Failed to get all metrics",
 				zap.Int("status code", http.StatusInternalServerError),
 				zap.Int("size", 0),
 				zap.String("error", err.Error()))
 		}
 
-		log.Info("Get all metric",
+		log.Info("Get all metrics",
 			zap.Int("status code", http.StatusOK),
 			zap.Int("size", size))
 	})
 
-	server := &http.Server{
+	hs := &http.Server{
 		Addr:    set.Address,
 		Handler: r,
 	}
 
 	return &Service{
-		logger:        log,
-		server:        server,
+		logger:        log.With(zap.String("package", "service")),
+		server:        hs,
 		store:         store,
 		updateHandler: updateMetricHandler,
 		valueHandler:  valueMetricHandler,
@@ -101,4 +101,12 @@ func NewService(ctx context.Context, log *zap.Logger, set *settings.Settings) (*
 func (s *Service) Run() error {
 	s.logger.Info("Running server on", zap.String("address", s.server.Addr))
 	return s.server.ListenAndServe()
+}
+
+func (s *Service) Stop(ctx context.Context) error {
+	s.logger.Debug("Stopping service")
+	if err := s.store.Stop(ctx); err != nil {
+		s.logger.Error("error of store stop", zap.Error(err))
+	}
+	return s.server.Shutdown(ctx)
 }

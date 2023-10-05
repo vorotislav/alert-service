@@ -34,7 +34,7 @@ func NewHandler(log *zap.Logger, storage Storage) *Handler {
 
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		h.log.Info("Failed to update metric",
+		h.log.Info("Failed to update metrics",
 			zap.Int("status code", http.StatusMethodNotAllowed),
 			zap.Int("size", 0))
 
@@ -51,9 +51,9 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	case MetricCounter:
 		h.updateCounter(w, r)
 	default:
-		h.log.Info("Failed update metric: unknown metric type")
+		h.log.Info("Failed update metrics: unknown metrics type")
 
-		http.Error(w, "unknown metric type", http.StatusBadRequest)
+		http.Error(w, "unknown metrics type", http.StatusBadRequest)
 	}
 }
 
@@ -62,18 +62,18 @@ func (h *Handler) updateCounter(w http.ResponseWriter, r *http.Request) {
 	metricValue, err := strconv.ParseInt(chi.URLParam(r, "metricValue"), 10, 64)
 
 	if err != nil {
-		h.log.Info("Failed to update counter metric",
+		h.log.Info("Failed to update counter metrics",
 			zap.Int("status code", http.StatusBadRequest),
 			zap.Int("size", 0))
 
-		http.Error(w, fmt.Errorf("cannot convert metric value: %w", err).Error(), http.StatusBadRequest)
+		http.Error(w, fmt.Errorf("cannot convert metrics value: %w", err).Error(), http.StatusBadRequest)
 
 		return
 	}
 
 	_, err = h.storage.UpdateCounter(metricName, metricValue)
 	if err != nil {
-		h.log.Info("Failed to update counter metric",
+		h.log.Info("Failed to update counter metrics",
 			zap.Int("status code", http.StatusInternalServerError),
 			zap.Int("size", 0))
 
@@ -82,7 +82,7 @@ func (h *Handler) updateCounter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.log.Info("Success update counter metric",
+	h.log.Info("Success update counter metrics",
 		zap.Int("status code", http.StatusOK),
 		zap.Int("size", 0))
 
@@ -95,18 +95,18 @@ func (h *Handler) updateGauge(w http.ResponseWriter, r *http.Request) {
 	metricValue, err := strconv.ParseFloat(chi.URLParam(r, "metricValue"), 64)
 
 	if err != nil {
-		h.log.Info("Failed to update gauge metric",
+		h.log.Info("Failed to update gauge metrics",
 			zap.Int("status code", http.StatusBadRequest),
 			zap.Int("size", 0))
 
-		http.Error(w, fmt.Errorf("cannot convert metric value: %w", err).Error(), http.StatusBadRequest)
+		http.Error(w, fmt.Errorf("cannot convert metrics value: %w", err).Error(), http.StatusBadRequest)
 
 		return
 	}
 
 	_, err = h.storage.UpdateGauge(metricName, metricValue)
 	if err != nil {
-		h.log.Info("Failed to update gauge metric",
+		h.log.Info("Failed to update gauge metrics",
 			zap.Int("status code", http.StatusInternalServerError),
 			zap.Int("size", 0))
 
@@ -120,14 +120,14 @@ func (h *Handler) updateGauge(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 
-	h.log.Info("Success update gauge metric",
+	h.log.Info("Success update gauge metrics",
 		zap.Int("status code", http.StatusOK),
 		zap.Int("size", 0))
 }
 
 func (h *Handler) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		h.log.Info("Failed to update metric",
+		h.log.Info("Failed to update metrics",
 			zap.Int("status code", http.StatusMethodNotAllowed),
 			zap.Int("size", 0))
 
@@ -137,7 +137,7 @@ func (h *Handler) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if contentType := r.Header.Get("Content-Type"); contentType != "application/json" {
-		h.log.Info("Failed to update metric",
+		h.log.Info("Failed to update metrics",
 			zap.String("unknown Content-Type", contentType),
 			zap.Int("status code", http.StatusBadRequest),
 			zap.Int("size", 0))
@@ -149,12 +149,12 @@ func (h *Handler) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 
 	m := model.Metrics{}
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
-		h.log.Info("Failed to update metric",
-			zap.String("cannot decode metric", err.Error()),
+		h.log.Info("Failed to update metrics",
+			zap.String("cannot decode metrics", err.Error()),
 			zap.Int("status code", http.StatusBadRequest),
 			zap.Int("size", 0))
 
-		http.Error(w, "cannot decode metric", http.StatusBadRequest)
+		http.Error(w, "cannot decode metrics", http.StatusBadRequest)
 
 		return
 	}
@@ -162,19 +162,19 @@ func (h *Handler) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 	switch m.MType {
 	case MetricGauge:
 		if m.Value == nil {
-			h.log.Info("Failed update metric: no metric value")
+			h.log.Info("Failed update metrics: no metrics value")
 
-			http.Error(w, "no metric value", http.StatusBadRequest)
+			http.Error(w, "no metrics value", http.StatusBadRequest)
 
 			return
 		}
 
 		newValue, err := h.storage.UpdateGauge(m.ID, *m.Value)
 		if err != nil {
-			h.log.Info("Failed update metric",
+			h.log.Info("Failed update metrics",
 				zap.Error(err))
 
-			http.Error(w, fmt.Sprintf("no metric value: %s", err.Error()), http.StatusBadRequest)
+			http.Error(w, fmt.Sprintf("no metrics value: %s", err.Error()), http.StatusBadRequest)
 
 			return
 		}
@@ -183,19 +183,19 @@ func (h *Handler) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 
 	case MetricCounter:
 		if m.Delta == nil {
-			h.log.Info("Failed update metric: no metric value")
+			h.log.Info("Failed update metrics: no metrics value")
 
-			http.Error(w, "no metric value", http.StatusBadRequest)
+			http.Error(w, "no metrics value", http.StatusBadRequest)
 
 			return
 		}
 
 		newValue, err := h.storage.UpdateCounter(m.ID, *m.Delta)
 		if err != nil {
-			h.log.Info("Failed update metric",
+			h.log.Info("Failed update metrics",
 				zap.Error(err))
 
-			http.Error(w, fmt.Sprintf("no metric value: %s", err.Error()), http.StatusBadRequest)
+			http.Error(w, fmt.Sprintf("no metrics value: %s", err.Error()), http.StatusBadRequest)
 
 			return
 		}
@@ -203,9 +203,9 @@ func (h *Handler) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 		m.Delta = &newValue
 
 	default:
-		h.log.Info("Failed update metric: unknown metric type")
+		h.log.Info("Failed update metrics: unknown metrics type")
 
-		http.Error(w, "unknown metric type", http.StatusBadRequest)
+		http.Error(w, "unknown metrics type", http.StatusBadRequest)
 
 		return
 	}
@@ -226,7 +226,7 @@ func (h *Handler) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 			zap.Int("size", 0))
 	}
 
-	h.log.Info("Success update metric",
+	h.log.Info("Success update metrics",
 		zap.Int("status code", http.StatusOK),
 		zap.Int("size", size))
 }

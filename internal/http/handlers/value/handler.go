@@ -35,7 +35,7 @@ func NewHandler(log *zap.Logger, storage Storage) *Handler {
 
 func (h *Handler) Value(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		h.log.Info("Failed to get metric",
+		h.log.Info("Failed to get metrics",
 			zap.Int("status code", http.StatusMethodNotAllowed),
 			zap.Int("size", 0))
 
@@ -53,18 +53,18 @@ func (h *Handler) Value(w http.ResponseWriter, r *http.Request) {
 	case MetricGauge:
 		value, err := h.storage.GetGaugeValue(metricName)
 		if err != nil {
-			h.log.Info("Failed to update gauge metric",
+			h.log.Info("Failed to update gauge metrics",
 				zap.Int("status code", http.StatusNotFound),
 				zap.Int("size", 0))
 
-			http.Error(w, fmt.Sprintf("metric %s if not found", metricName), http.StatusNotFound)
+			http.Error(w, fmt.Sprintf("metrics %s if not found", metricName), http.StatusNotFound)
 
 			return
 		}
 
 		size, err = w.Write([]byte(fmt.Sprintf("%v", value)))
 		if err != nil {
-			h.log.Info("Failed to get gauge metric",
+			h.log.Info("Failed to get gauge metrics",
 				zap.Int("status code", http.StatusBadRequest),
 				zap.Int("size", 0))
 		}
@@ -72,29 +72,29 @@ func (h *Handler) Value(w http.ResponseWriter, r *http.Request) {
 	case MetricCounter:
 		value, err := h.storage.GetCounterValue(metricName)
 		if err != nil {
-			h.log.Info("Failed to get counter metric",
+			h.log.Info("Failed to get counter metrics",
 				zap.Int("status code", http.StatusNotFound),
 				zap.Int("size", 0))
 
-			http.Error(w, fmt.Sprintf("metric %s if not found", metricName), http.StatusNotFound)
+			http.Error(w, fmt.Sprintf("metrics %s if not found", metricName), http.StatusNotFound)
 
 			return
 		}
 
 		size, err = w.Write([]byte(fmt.Sprintf("%d", value)))
 		if err != nil {
-			h.log.Info("Failed to get counter metric",
+			h.log.Info("Failed to get counter metrics",
 				zap.Int("status code", http.StatusInternalServerError),
 				zap.Int("size", 0),
 				zap.String("err", err.Error()))
 		}
 	default:
-		h.log.Info("Failed get metric: unknown metric type")
+		h.log.Info("Failed get metrics: unknown metrics type")
 
-		http.Error(w, "unknown metric type", http.StatusBadRequest)
+		http.Error(w, "unknown metrics type", http.StatusBadRequest)
 	}
 
-	h.log.Info("Get gauge metric",
+	h.log.Info("Get gauge metrics",
 		zap.Int("status code", http.StatusOK),
 		zap.Int("size", size))
 
@@ -107,7 +107,7 @@ func (h *Handler) Value(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) ValueJSON(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		h.log.Info("Failed to get metric",
+		h.log.Info("Failed to get metrics",
 			zap.Int("status code", http.StatusMethodNotAllowed),
 			zap.Int("size", 0))
 
@@ -117,7 +117,7 @@ func (h *Handler) ValueJSON(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if contentType := r.Header.Get("Content-Type"); contentType != "application/json" {
-		h.log.Info("Failed to get metric",
+		h.log.Info("Failed to get metrics",
 			zap.String("unknown Content-Type", contentType),
 			zap.Int("status code", http.StatusBadRequest),
 			zap.Int("size", 0))
@@ -129,23 +129,23 @@ func (h *Handler) ValueJSON(w http.ResponseWriter, r *http.Request) {
 
 	m := model.Metrics{}
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
-		h.log.Info("Failed to get metric",
-			zap.String("cannot decode metric", err.Error()),
+		h.log.Info("Failed to get metrics",
+			zap.String("cannot decode metrics", err.Error()),
 			zap.Int("status code", http.StatusBadRequest),
 			zap.Int("size", 0))
 
-		http.Error(w, "cannot decode metric", http.StatusBadRequest)
+		http.Error(w, "cannot decode metrics", http.StatusBadRequest)
 
 		return
 	}
 
 	if m.ID == "" {
-		h.log.Info("Failed to get metric",
-			zap.String("metric ID is empty", ""),
+		h.log.Info("Failed to get metrics",
+			zap.String("metrics ID is empty", ""),
 			zap.Int("status code", http.StatusBadRequest),
 			zap.Int("size", 0))
 
-		http.Error(w, "metric ID is empty", http.StatusBadRequest)
+		http.Error(w, "metrics ID is empty", http.StatusBadRequest)
 
 		return
 	}
@@ -154,11 +154,11 @@ func (h *Handler) ValueJSON(w http.ResponseWriter, r *http.Request) {
 	case MetricGauge:
 		value, err := h.storage.GetGaugeValue(m.ID)
 		if err != nil {
-			h.log.Info("Failed to get gauge metric",
+			h.log.Info("Failed to get gauge metrics",
 				zap.Int("status code", http.StatusNotFound),
 				zap.Int("size", 0))
 
-			http.Error(w, fmt.Sprintf("metric %s if not found", m.ID), http.StatusNotFound)
+			http.Error(w, fmt.Sprintf("metrics %s if not found", m.ID), http.StatusNotFound)
 
 			return
 		}
@@ -167,20 +167,20 @@ func (h *Handler) ValueJSON(w http.ResponseWriter, r *http.Request) {
 	case MetricCounter:
 		value, err := h.storage.GetCounterValue(m.ID)
 		if err != nil {
-			h.log.Info("Failed to get counter metric",
+			h.log.Info("Failed to get counter metrics",
 				zap.Int("status code", http.StatusNotFound),
 				zap.Int("size", 0))
 
-			http.Error(w, fmt.Sprintf("metric %s if not found", m.ID), http.StatusNotFound)
+			http.Error(w, fmt.Sprintf("metrics %s if not found", m.ID), http.StatusNotFound)
 
 			return
 		}
 
 		m.Delta = &value
 	default:
-		h.log.Info("Failed to get metric: unknown metric type")
+		h.log.Info("Failed to get metrics: unknown metrics type")
 
-		http.Error(w, "unknown metric type", http.StatusBadRequest)
+		http.Error(w, "unknown metrics type", http.StatusBadRequest)
 
 		return
 	}
@@ -202,7 +202,7 @@ func (h *Handler) ValueJSON(w http.ResponseWriter, r *http.Request) {
 			zap.Int("size", 0))
 	}
 
-	h.log.Info("Success get metric",
+	h.log.Info("Success get metrics",
 		zap.Int("status code", http.StatusOK),
 		zap.Int("size", size))
 }

@@ -56,7 +56,7 @@ func TestHandler_Update(t *testing.T) {
 		{
 			name:           "bad request counter",
 			giveMethod:     http.MethodPost,
-			givePath:       "/update/counter/someMetric/metric",
+			givePath:       "/update/counter/someMetric/metrics",
 			wantStatusCode: http.StatusBadRequest,
 		},
 		{
@@ -80,7 +80,7 @@ func TestHandler_Update(t *testing.T) {
 		{
 			name:           "bad request gauge",
 			giveMethod:     http.MethodPost,
-			givePath:       "/update/gauge/someMetric/metric",
+			givePath:       "/update/gauge/someMetric/metrics",
 			wantStatusCode: http.StatusBadRequest,
 		},
 	}
@@ -151,19 +151,19 @@ func TestHandler_UpdateJSON(t *testing.T) {
 		{
 			name:           "success gauge",
 			giveMethod:     http.MethodPost,
-			giveBody:       []byte(`{"id":"some metric", "type":"gauge", "value":1}`),
+			giveBody:       []byte(`{"id":"some metrics", "type":"gauge", "value":1}`),
 			wantStatusCode: http.StatusOK,
 		},
 		{
 			name:           "method not allowed gauge",
 			giveMethod:     http.MethodGet,
-			giveBody:       []byte(`{"id":"some metric", "type":"gauge", "value":1}`),
+			giveBody:       []byte(`{"id":"some metrics", "type":"gauge", "value":1}`),
 			wantStatusCode: http.StatusMethodNotAllowed,
 		},
 		{
 			name:           "bad request gauge",
 			giveMethod:     http.MethodPost,
-			giveBody:       []byte(`{"id":"some metric", "type":"gauge"}`),
+			giveBody:       []byte(`{"id":"some metrics", "type":"gauge"}`),
 			wantStatusCode: http.StatusBadRequest,
 		},
 	}

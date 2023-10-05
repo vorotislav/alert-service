@@ -185,7 +185,7 @@ func TestHandler_ValueJSON(t *testing.T) {
 			},
 		},
 		{
-			name:           "bad request of metric type",
+			name:           "bad request of metrics type",
 			giveMethod:     http.MethodPost,
 			giveBody:       []byte(`{"id":"name", "type":"azaza"}`),
 			wantStatusCode: http.StatusBadRequest,

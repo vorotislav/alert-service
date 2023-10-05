@@ -1,4 +1,4 @@
-package settings
+package server
 
 type Settings struct {
 	Address         string

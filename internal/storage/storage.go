@@ -5,19 +5,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/vorotislav/alert-service/internal/settings"
+	"github.com/vorotislav/alert-service/internal/settings/server"
 	"go.uber.org/zap"
 	"os"
 	"time"
 )
 
 var (
-	ErrNotFound = errors.New("metric not found")
+	ErrNotFound = errors.New("metrics not found")
 )
 
 type MemStorage struct {
 	log            *zap.Logger
-	set            *settings.Settings
+	set            *server.Settings
 	CounterMetrics map[string]int64   `json:"counter_metrics"`
 	GaugeMetrics   map[string]float64 `json:"gauge_metrics"`
 
@@ -28,7 +28,7 @@ type MemStorage struct {
 	async       bool
 }
 
-func NewMemStorage(ctx context.Context, log *zap.Logger, set *settings.Settings) (*MemStorage, error) {
+func NewMemStorage(ctx context.Context, log *zap.Logger, set *server.Settings) (*MemStorage, error) {
 	var (
 		file        *os.File
 		err         error
@@ -43,7 +43,7 @@ func NewMemStorage(ctx context.Context, log *zap.Logger, set *settings.Settings)
 	}
 
 	store := &MemStorage{
-		log:         log,
+		log:         log.With(zap.String("package", "store")),
 		set:         set,
 		file:        file,
 		encoder:     json.NewEncoder(file),
@@ -66,6 +66,16 @@ func NewMemStorage(ctx context.Context, log *zap.Logger, set *settings.Settings)
 	}
 
 	return store, nil
+}
+
+func (m *MemStorage) Stop(_ context.Context) error {
+	m.log.Debug("stopping store...")
+
+	if m.file != nil {
+		return m.file.Close()
+	}
+
+	return nil
 }
 
 func (m *MemStorage) UpdateCounter(name string, value int64) (int64, error) {
@@ -150,7 +160,9 @@ func (m *MemStorage) asyncLoop(ctx context.Context, timeout int) {
 		select {
 		case <-ctx.Done():
 			m.log.Info("context is done")
-			// write to file
+			if err := m.writeMetrics(); err != nil {
+				m.log.Info("cannot write metrics", zap.Error(err))
+			}
 			return
 		case <-t.C:
 			m.log.Info("write to file")
