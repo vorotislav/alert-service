@@ -47,12 +47,10 @@ func main() {
 	worker := metrics.NewWorker(logger, &sets, wc)
 	worker.Start(ctx)
 
-	select {
-	case <-ctx.Done():
-		logger.Info("Agent stopping...")
-		ctxShutdown, ctxCancelShutdown := context.WithTimeout(context.Background(), workerShutdownTimeout)
-		worker.Stop(ctxShutdown)
+	<-ctx.Done()
+	logger.Info("Agent stopping...")
+	ctxShutdown, ctxCancelShutdown := context.WithTimeout(context.Background(), workerShutdownTimeout)
+	worker.Stop(ctxShutdown)
 
-		defer ctxCancelShutdown()
-	}
+	defer ctxCancelShutdown()
 }
