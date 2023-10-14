@@ -75,6 +75,7 @@ func TestHandler_Ping(t *testing.T) {
 
 			res, err := server.Client().Do(request)
 			require.NoError(t, err)
+			defer res.Body.Close()
 
 			assert.Equal(t, tc.wantStatusCode, res.StatusCode)
 		})
