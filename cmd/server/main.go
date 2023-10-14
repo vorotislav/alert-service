@@ -63,7 +63,9 @@ func main() {
 		logger.Info("Server stopping...")
 		ctxShutdown, ctxCancelShutdown := context.WithTimeout(context.Background(), serviceShutdownTimeout)
 
-		_ = s.Stop(ctxShutdown)
+		if err := s.Stop(ctxShutdown); err != nil {
+			logger.Error("cannot stop server", zap.Error(err))
+		}
 
 		defer ctxCancelShutdown()
 	}
