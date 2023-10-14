@@ -3,8 +3,10 @@ package http
 import (
 	"context"
 	"fmt"
+	"github.com/vorotislav/alert-service/internal/http/handlers/ping"
 	"github.com/vorotislav/alert-service/internal/http/handlers/update"
 	"github.com/vorotislav/alert-service/internal/http/handlers/value"
+	"github.com/vorotislav/alert-service/internal/repository"
 	"github.com/vorotislav/alert-service/internal/settings/server"
 	"net/http"
 
@@ -20,7 +22,9 @@ type Service struct {
 	server        *http.Server
 	updateHandler *update.Handler
 	valueHandler  *value.Handler
+	pingHandler   *ping.Handler
 	store         *storage.MemStorage
+	repo          *repository.Repo
 }
 
 func NewService(ctx context.Context, log *zap.Logger, set *server.Settings) (*Service, error) {
@@ -34,9 +38,16 @@ func NewService(ctx context.Context, log *zap.Logger, set *server.Settings) (*Se
 		return nil, fmt.Errorf("cannot create service: %w", err)
 	}
 
+	repo, err := repository.NewRepo(ctx, log, set)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create service: %w", err)
+	}
+
 	updateMetricHandler := update.NewHandler(log, store)
 
 	valueMetricHandler := value.NewHandler(log, store)
+
+	pingHandler := ping.NewHandler(log, repo)
 
 	r.Route("/update", func(r chi.Router) {
 		r.Route("/{metricType}", func(r chi.Router) {
@@ -54,6 +65,10 @@ func NewService(ctx context.Context, log *zap.Logger, set *server.Settings) (*Se
 		})
 
 		r.Post("/", valueMetricHandler.ValueJSON)
+	})
+
+	r.Route("/ping", func(r chi.Router) {
+		r.Get("/", pingHandler.Ping)
 	})
 
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -93,8 +108,10 @@ func NewService(ctx context.Context, log *zap.Logger, set *server.Settings) (*Se
 		logger:        log.With(zap.String("package", "service")),
 		server:        hs,
 		store:         store,
+		repo:          repo,
 		updateHandler: updateMetricHandler,
 		valueHandler:  valueMetricHandler,
+		pingHandler:   pingHandler,
 	}, nil
 }
 
@@ -108,5 +125,8 @@ func (s *Service) Stop(ctx context.Context) error {
 	if err := s.store.Stop(ctx); err != nil {
 		s.logger.Error("error of store stop", zap.Error(err))
 	}
+
+	s.repo.Close()
+
 	return s.server.Shutdown(ctx)
 }

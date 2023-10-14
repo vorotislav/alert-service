@@ -4,19 +4,21 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/go-chi/chi/v5"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/vorotislav/alert-service/internal/http/middlewares"
-	"github.com/vorotislav/alert-service/internal/model"
-	"github.com/vorotislav/alert-service/internal/utils"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/vorotislav/alert-service/internal/http/middlewares"
+	"github.com/vorotislav/alert-service/internal/model"
+	"github.com/vorotislav/alert-service/internal/utils"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 type stubStorage struct{}
@@ -107,7 +109,7 @@ func TestHandler_Value(t *testing.T) {
 			server := httptest.NewServer(r)
 			defer server.Close()
 
-			request, err := http.NewRequest(tc.giveMethod, server.URL+tc.givePath, nil)
+			request, err := http.NewRequest(tc.giveMethod, server.URL+tc.givePath, http.NoBody)
 			require.NoError(t, err)
 
 			res, err := server.Client().Do(request)

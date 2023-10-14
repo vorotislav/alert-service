@@ -33,16 +33,6 @@ func NewHandler(log *zap.Logger, storage Storage) *Handler {
 }
 
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		h.log.Info("Failed to update metrics",
-			zap.Int("status code", http.StatusMethodNotAllowed),
-			zap.Int("size", 0))
-
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-
-		return
-	}
-
 	metricType := chi.URLParam(r, "metricType")
 
 	switch metricType {
@@ -54,6 +44,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		h.log.Info("Failed update metrics: unknown metrics type")
 
 		http.Error(w, "unknown metrics type", http.StatusBadRequest)
+		return
 	}
 }
 
@@ -88,6 +79,7 @@ func (h *Handler) updateCounter(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/plain")
 	w.Header().Add("Content-Type", "charset=utf-8")
+	w.WriteHeader(http.StatusOK)
 }
 
 func (h *Handler) updateGauge(w http.ResponseWriter, r *http.Request) {
