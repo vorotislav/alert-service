@@ -53,12 +53,12 @@ func NewMemStorage(ctx context.Context, log *zap.Logger, set *server.Settings) (
 	store.CounterMetrics = make(map[string]int64)
 	store.GaugeMetrics = make(map[string]float64)
 
-	if set.StoreInterval > 0 {
-		go store.asyncLoop(ctx, set.StoreInterval)
+	if *set.StoreInterval > 0 {
+		go store.asyncLoop(ctx, *set.StoreInterval)
 		store.async = true
 	}
 
-	if set.Restore {
+	if *set.Restore {
 		if err := store.readMetrics(); err != nil {
 			log.Info("cannot read metrics",
 				zap.Error(err))
