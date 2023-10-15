@@ -12,7 +12,7 @@ func parseFlag(sets *server.Settings) {
 			flag.StringVar(&sets.Address, "a", ":8080", "address and port to run server")
 		}
 		if sets.FileStoragePath == "" {
-			flag.StringVar(&sets.FileStoragePath, "f", "/tmp/metrics-db.json", "file storage path")
+			flag.StringVar(&sets.FileStoragePath, "f", "/tmp/metrics-db.json", "file localstorage path")
 		}
 		if sets.StoreInterval == nil {
 			var interval int
@@ -25,9 +25,10 @@ func parseFlag(sets *server.Settings) {
 			sets.Restore = &restore
 		}
 		if sets.DatabaseDSN == "" {
-			flag.StringVar(&sets.DatabaseDSN, "d", "user=postgres password=postgres host=127.0.0.1 port=5432 dbname=postgres pool_max_conns=10", "database dsn")
+			flag.StringVar(&sets.DatabaseDSN, "d", "", "database dsn")
 		}
 	}
 
+	// user=postgres password=postgres host=127.0.0.1 port=5432 dbname=alert_service pool_max_conns=10
 	flag.Parse()
 }

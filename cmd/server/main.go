@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"github.com/vorotislav/alert-service/internal/http"
+	"github.com/vorotislav/alert-service/internal/repository/localstorage"
+	"github.com/vorotislav/alert-service/internal/repository/postgres"
 	"github.com/vorotislav/alert-service/internal/settings/server"
 	"github.com/vorotislav/alert-service/internal/signals"
 	"go.uber.org/zap"
@@ -39,9 +41,28 @@ func main() {
 		cancel()
 	})
 
-	s, err := http.NewService(ctx, logger, &sets)
+	var (
+		repo    http.Repository
+		repoErr error
+	)
+
+	if sets.DatabaseDSN == "" {
+		repo, repoErr = localstorage.NewMemStorage(ctx, logger, &sets)
+	} else {
+		repo, repoErr = postgres.NewStorage(ctx, logger, &sets)
+	}
+
+	if repoErr != nil {
+		logger.Error("cannot create repository", zap.Error(repoErr))
+
+		return
+	}
+
+	s, err := http.NewService(ctx, logger, &sets, repo)
 	if err != nil {
-		log.Fatal(err)
+		logger.Error("cannot create http service", zap.Error(err))
+
+		return
 	}
 
 	serviceErrCh := make(chan error, 1)

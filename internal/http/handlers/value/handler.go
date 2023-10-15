@@ -1,6 +1,7 @@
 package value
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/go-chi/chi/v5"
@@ -15,10 +16,10 @@ const (
 )
 
 type Storage interface {
-	GetGaugeValue(name string) (float64, error)
-	AllGaugeMetrics() ([]byte, error)
-	GetCounterValue(name string) (int64, error)
-	AllCounterMetrics() ([]byte, error)
+	GetGaugeValue(ctx context.Context, name string) (float64, error)
+	AllGaugeMetrics(ctx context.Context) ([]byte, error)
+	GetCounterValue(ctx context.Context, name string) (int64, error)
+	AllCounterMetrics(ctx context.Context) ([]byte, error)
 }
 
 type Handler struct {
@@ -51,7 +52,7 @@ func (h *Handler) Value(w http.ResponseWriter, r *http.Request) {
 
 	switch metricType {
 	case MetricGauge:
-		value, err := h.storage.GetGaugeValue(metricName)
+		value, err := h.storage.GetGaugeValue(r.Context(), metricName)
 		if err != nil {
 			h.log.Info("Failed to update gauge metrics",
 				zap.Int("status code", http.StatusNotFound),
@@ -70,7 +71,7 @@ func (h *Handler) Value(w http.ResponseWriter, r *http.Request) {
 		}
 
 	case MetricCounter:
-		value, err := h.storage.GetCounterValue(metricName)
+		value, err := h.storage.GetCounterValue(r.Context(), metricName)
 		if err != nil {
 			h.log.Info("Failed to get counter metrics",
 				zap.Int("status code", http.StatusNotFound),
@@ -152,7 +153,7 @@ func (h *Handler) ValueJSON(w http.ResponseWriter, r *http.Request) {
 
 	switch m.MType {
 	case MetricGauge:
-		value, err := h.storage.GetGaugeValue(m.ID)
+		value, err := h.storage.GetGaugeValue(r.Context(), m.ID)
 		if err != nil {
 			h.log.Info("Failed to get gauge metrics",
 				zap.Int("status code", http.StatusNotFound),
@@ -165,7 +166,7 @@ func (h *Handler) ValueJSON(w http.ResponseWriter, r *http.Request) {
 
 		m.Value = &value
 	case MetricCounter:
-		value, err := h.storage.GetCounterValue(m.ID)
+		value, err := h.storage.GetCounterValue(r.Context(), m.ID)
 		if err != nil {
 			h.log.Info("Failed to get counter metrics",
 				zap.Int("status code", http.StatusNotFound),
@@ -207,13 +208,13 @@ func (h *Handler) ValueJSON(w http.ResponseWriter, r *http.Request) {
 		zap.Int("size", size))
 }
 
-func (h *Handler) AllMetrics() ([]byte, error) {
-	cntMetrics, err := h.storage.AllCounterMetrics()
+func (h *Handler) AllMetrics(ctx context.Context) ([]byte, error) {
+	cntMetrics, err := h.storage.AllCounterMetrics(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	ggMetrics, err := h.storage.AllGaugeMetrics()
+	ggMetrics, err := h.storage.AllGaugeMetrics(ctx)
 	if err != nil {
 		return nil, err
 	}

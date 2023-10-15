@@ -2,20 +2,27 @@ package http
 
 import (
 	"context"
-	"fmt"
 	"github.com/vorotislav/alert-service/internal/http/handlers/ping"
 	"github.com/vorotislav/alert-service/internal/http/handlers/update"
 	"github.com/vorotislav/alert-service/internal/http/handlers/value"
-	"github.com/vorotislav/alert-service/internal/repository"
 	"github.com/vorotislav/alert-service/internal/settings/server"
 	"net/http"
 
-	"github.com/vorotislav/alert-service/internal/http/middlewares"
-	"github.com/vorotislav/alert-service/internal/storage"
-
 	"github.com/go-chi/chi/v5"
+	"github.com/vorotislav/alert-service/internal/http/middlewares"
 	"go.uber.org/zap"
 )
+
+type Repository interface {
+	UpdateCounter(ctx context.Context, name string, value int64) (int64, error)
+	GetCounterValue(ctx context.Context, name string) (int64, error)
+	AllCounterMetrics(ctx context.Context) ([]byte, error)
+	UpdateGauge(ctx context.Context, name string, value float64) (float64, error)
+	GetGaugeValue(ctx context.Context, name string) (float64, error)
+	AllGaugeMetrics(ctx context.Context) ([]byte, error)
+	Ping(ctx context.Context) error
+	Stop(ctx context.Context) error
+}
 
 type Service struct {
 	logger        *zap.Logger
@@ -23,29 +30,18 @@ type Service struct {
 	updateHandler *update.Handler
 	valueHandler  *value.Handler
 	pingHandler   *ping.Handler
-	store         *storage.MemStorage
-	repo          *repository.Repo
+	repo          Repository
 }
 
-func NewService(ctx context.Context, log *zap.Logger, set *server.Settings) (*Service, error) {
+func NewService(_ context.Context, log *zap.Logger, set *server.Settings, repo Repository) (*Service, error) {
 	r := chi.NewRouter()
 
 	r.Use(middlewares.New(log))
 	r.Use(middlewares.CompressMiddleware)
 
-	store, err := storage.NewMemStorage(ctx, log, set)
-	if err != nil {
-		return nil, fmt.Errorf("cannot create service: %w", err)
-	}
+	updateMetricHandler := update.NewHandler(log, repo)
 
-	repo, err := repository.NewRepo(ctx, log, set)
-	if err != nil {
-		return nil, fmt.Errorf("cannot create service: %w", err)
-	}
-
-	updateMetricHandler := update.NewHandler(log, store)
-
-	valueMetricHandler := value.NewHandler(log, store)
+	valueMetricHandler := value.NewHandler(log, repo)
 
 	pingHandler := ping.NewHandler(log, repo)
 
@@ -72,7 +68,7 @@ func NewService(ctx context.Context, log *zap.Logger, set *server.Settings) (*Se
 	})
 
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		resp, err := valueMetricHandler.AllMetrics()
+		resp, err := valueMetricHandler.AllMetrics(r.Context())
 		if err != nil {
 			log.Info("Failed to get all counter metrics",
 				zap.Int("status code", http.StatusInternalServerError),
@@ -107,7 +103,6 @@ func NewService(ctx context.Context, log *zap.Logger, set *server.Settings) (*Se
 	return &Service{
 		logger:        log.With(zap.String("package", "service")),
 		server:        hs,
-		store:         store,
 		repo:          repo,
 		updateHandler: updateMetricHandler,
 		valueHandler:  valueMetricHandler,
@@ -122,11 +117,9 @@ func (s *Service) Run() error {
 
 func (s *Service) Stop(ctx context.Context) error {
 	s.logger.Debug("Stopping service")
-	if err := s.store.Stop(ctx); err != nil {
-		s.logger.Error("error of store stop", zap.Error(err))
+	if err := s.repo.Stop(ctx); err != nil {
+		s.logger.Error("error of repo stop", zap.Error(err))
 	}
-
-	s.repo.Close()
 
 	return s.server.Shutdown(ctx)
 }

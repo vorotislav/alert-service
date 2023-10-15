@@ -1,6 +1,7 @@
 package update
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/go-chi/chi/v5"
@@ -16,8 +17,8 @@ const (
 )
 
 type Storage interface {
-	UpdateGauge(name string, value float64) (float64, error)
-	UpdateCounter(name string, value int64) (int64, error)
+	UpdateGauge(ctx context.Context, name string, value float64) (float64, error)
+	UpdateCounter(ctx context.Context, name string, value int64) (int64, error)
 }
 
 type Handler struct {
@@ -62,7 +63,7 @@ func (h *Handler) updateCounter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.storage.UpdateCounter(metricName, metricValue)
+	_, err = h.storage.UpdateCounter(r.Context(), metricName, metricValue)
 	if err != nil {
 		h.log.Info("Failed to update counter metrics",
 			zap.Int("status code", http.StatusInternalServerError),
@@ -96,7 +97,7 @@ func (h *Handler) updateGauge(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.storage.UpdateGauge(metricName, metricValue)
+	_, err = h.storage.UpdateGauge(r.Context(), metricName, metricValue)
 	if err != nil {
 		h.log.Info("Failed to update gauge metrics",
 			zap.Int("status code", http.StatusInternalServerError),
@@ -161,7 +162,7 @@ func (h *Handler) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		newValue, err := h.storage.UpdateGauge(m.ID, *m.Value)
+		newValue, err := h.storage.UpdateGauge(r.Context(), m.ID, *m.Value)
 		if err != nil {
 			h.log.Info("Failed update metrics",
 				zap.Error(err))
@@ -182,7 +183,7 @@ func (h *Handler) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		newValue, err := h.storage.UpdateCounter(m.ID, *m.Delta)
+		newValue, err := h.storage.UpdateCounter(r.Context(), m.ID, *m.Delta)
 		if err != nil {
 			h.log.Info("Failed update metrics",
 				zap.Error(err))
