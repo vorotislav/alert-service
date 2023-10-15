@@ -30,19 +30,75 @@ func NewClient(logger *zap.Logger, set *agent.Settings) *Client {
 		dc:        http.DefaultClient,
 		logger:    logger.With(zap.String("package", "client")),
 		set:       set,
-		serverURL: fmt.Sprintf("http://%s/update", set.ServerAddress),
+		serverURL: fmt.Sprintf("http://%s/updates", set.ServerAddress),
 	}
 
 	return c
 }
 
 func (c *Client) SendMetrics(metrics map[string]*model.Metrics) error {
+
+	newMetrics := make([]model.Metrics, 0, len(metrics))
 	for _, m := range metrics {
 		m := m
-		if err := c.sendMetric(m); err != nil {
-			return err
-		}
+		newMetrics = append(newMetrics, *m)
 	}
+
+	if err := c.sendMetrics(newMetrics); err != nil {
+		return fmt.Errorf("cannot send metrics: %w", err)
+	}
+
+	//for _, m := range metrics {
+	//	m := m
+	//	if err := c.sendMetric(m); err != nil {
+	//		return err
+	//	}
+	//}
+	return nil
+}
+
+func (c *Client) sendMetrics(metrics []model.Metrics) error {
+	raw, err := json.Marshal(metrics)
+	if err != nil {
+		c.logger.Error("cannot metric marshal", zap.Error(err))
+
+		return fmt.Errorf("%w: %w", ErrSendMetrics, err)
+	}
+
+	compressRaw, err := utils.Compress(raw)
+	if err != nil {
+		c.logger.Error("cannot compress data", zap.Error(err))
+
+		return fmt.Errorf("%w: %w", ErrSendMetrics, err)
+	}
+
+	req, err := http.NewRequest(
+		http.MethodPost,
+		c.serverURL,
+		bytes.NewBuffer(compressRaw),
+	)
+
+	if err != nil {
+		c.logger.Error("cannot request prepare", zap.Error(err))
+
+		return fmt.Errorf("%w: %w", ErrSendMetrics, err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept-Encoding", "gzip")
+	req.Header.Set("Content-Encoding", "gzip")
+
+	resp, err := c.dc.Do(req)
+	if err != nil {
+		c.logger.Error("cannot send metrics", zap.Error(err))
+
+		return fmt.Errorf("%w: %w", ErrSendMetrics, err)
+	}
+
+	if resp != nil {
+		resp.Body.Close()
+	}
+
 	return nil
 }
 

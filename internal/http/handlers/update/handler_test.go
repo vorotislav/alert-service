@@ -22,7 +22,7 @@ func TestHandler_Update(t *testing.T) {
 	log, err := zap.NewDevelopment()
 	require.NoError(t, err)
 
-	tests := []struct {
+	cases := []struct {
 		name           string
 		prepareRepo    func(repository *mocks.MockRepository)
 		giveMethod     string
@@ -84,9 +84,9 @@ func TestHandler_Update(t *testing.T) {
 			wantStatusCode: http.StatusBadRequest,
 		},
 	}
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			r := chi.NewRouter()
 
@@ -94,8 +94,8 @@ func TestHandler_Update(t *testing.T) {
 			defer ctrl.Finish()
 
 			m := mocks.NewMockRepository(ctrl)
-			if tt.prepareRepo != nil {
-				tt.prepareRepo(m)
+			if tc.prepareRepo != nil {
+				tc.prepareRepo(m)
 			}
 
 			h := &Handler{
@@ -115,14 +115,14 @@ func TestHandler_Update(t *testing.T) {
 			server := httptest.NewServer(r)
 			defer server.Close()
 
-			request, err := http.NewRequest(tt.giveMethod, server.URL+tt.givePath, nil)
+			request, err := http.NewRequest(tc.giveMethod, server.URL+tc.givePath, nil)
 			require.NoError(t, err)
 
 			res, err := server.Client().Do(request)
 			require.NoError(t, err)
 			defer res.Body.Close()
 
-			assert.Equal(t, tt.wantStatusCode, res.StatusCode)
+			assert.Equal(t, tc.wantStatusCode, res.StatusCode)
 		})
 	}
 }
@@ -133,7 +133,7 @@ func TestHandler_UpdateJSON(t *testing.T) {
 	log, err := zap.NewDevelopment()
 	require.NoError(t, err)
 
-	tests := []struct {
+	cases := []struct {
 		name           string
 		prepareRepo    func(repository *mocks.MockRepository)
 		giveMethod     string
@@ -183,17 +183,19 @@ func TestHandler_UpdateJSON(t *testing.T) {
 			wantStatusCode: http.StatusBadRequest,
 		},
 	}
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			r := chi.NewRouter()
 
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 
 			m := mocks.NewMockRepository(ctrl)
-			if tt.prepareRepo != nil {
-				tt.prepareRepo(m)
+			if tc.prepareRepo != nil {
+				tc.prepareRepo(m)
 			}
 
 			h := &Handler{
@@ -210,7 +212,7 @@ func TestHandler_UpdateJSON(t *testing.T) {
 			server := httptest.NewServer(r)
 			defer server.Close()
 
-			request, err := http.NewRequest(tt.giveMethod, server.URL+"/update", bytes.NewBuffer(tt.giveBody))
+			request, err := http.NewRequest(tc.giveMethod, server.URL+"/update", bytes.NewBuffer(tc.giveBody))
 			require.NoError(t, err)
 
 			request.Header.Set("Content-Type", "application/json")
@@ -219,7 +221,7 @@ func TestHandler_UpdateJSON(t *testing.T) {
 			require.NoError(t, err)
 			defer res.Body.Close()
 
-			assert.Equal(t, tt.wantStatusCode, res.StatusCode)
+			assert.Equal(t, tc.wantStatusCode, res.StatusCode)
 		})
 	}
 }

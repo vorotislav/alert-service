@@ -4,7 +4,9 @@ import (
 	"context"
 	"github.com/vorotislav/alert-service/internal/http/handlers/ping"
 	"github.com/vorotislav/alert-service/internal/http/handlers/update"
+	"github.com/vorotislav/alert-service/internal/http/handlers/updates"
 	"github.com/vorotislav/alert-service/internal/http/handlers/value"
+	"github.com/vorotislav/alert-service/internal/model"
 	"github.com/vorotislav/alert-service/internal/settings/server"
 	"net/http"
 
@@ -22,6 +24,7 @@ type Repository interface {
 	AllGaugeMetrics(ctx context.Context) ([]byte, error)
 	Ping(ctx context.Context) error
 	Stop(ctx context.Context) error
+	UpdateMetrics(ctx context.Context, metrics []model.Metrics) error
 }
 
 type Service struct {
@@ -45,6 +48,11 @@ func NewService(_ context.Context, log *zap.Logger, set *server.Settings, repo R
 
 	pingHandler := ping.NewHandler(log, repo)
 
+	updatesMetricHandler := updates.NewHandler(log, repo)
+
+	r.Route("/updates", func(r chi.Router) {
+		r.Post("/", updatesMetricHandler.Updates)
+	})
 	r.Route("/update", func(r chi.Router) {
 		r.Route("/{metricType}", func(r chi.Router) {
 			r.Route("/{metricName}", func(r chi.Router) {
