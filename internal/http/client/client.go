@@ -30,7 +30,7 @@ func NewClient(logger *zap.Logger, set *agent.Settings) *Client {
 		dc:        http.DefaultClient,
 		logger:    logger.With(zap.String("package", "client")),
 		set:       set,
-		serverURL: fmt.Sprintf("http://%s/updates", set.ServerAddress),
+		serverURL: fmt.Sprintf("http://%s/update", set.ServerAddress),
 	}
 
 	return c
