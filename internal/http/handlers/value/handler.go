@@ -15,7 +15,7 @@ const (
 	MetricGauge   = "gauge"
 )
 
-type Storage interface {
+type Repository interface {
 	GetGaugeValue(ctx context.Context, name string) (float64, error)
 	AllGaugeMetrics(ctx context.Context) ([]byte, error)
 	GetCounterValue(ctx context.Context, name string) (int64, error)
@@ -23,14 +23,14 @@ type Storage interface {
 }
 
 type Handler struct {
-	log     *zap.Logger
-	storage Storage
+	log  *zap.Logger
+	repo Repository
 }
 
-func NewHandler(log *zap.Logger, storage Storage) *Handler {
+func NewHandler(log *zap.Logger, repo Repository) *Handler {
 	return &Handler{
-		log:     log,
-		storage: storage,
+		log:  log,
+		repo: repo,
 	}
 }
 
@@ -52,7 +52,7 @@ func (h *Handler) Value(w http.ResponseWriter, r *http.Request) {
 
 	switch metricType {
 	case MetricGauge:
-		value, err := h.storage.GetGaugeValue(r.Context(), metricName)
+		value, err := h.repo.GetGaugeValue(r.Context(), metricName)
 		if err != nil {
 			h.log.Info("Failed to update gauge metrics",
 				zap.Int("status code", http.StatusNotFound),
@@ -71,7 +71,7 @@ func (h *Handler) Value(w http.ResponseWriter, r *http.Request) {
 		}
 
 	case MetricCounter:
-		value, err := h.storage.GetCounterValue(r.Context(), metricName)
+		value, err := h.repo.GetCounterValue(r.Context(), metricName)
 		if err != nil {
 			h.log.Info("Failed to get counter metrics",
 				zap.Int("status code", http.StatusNotFound),
@@ -153,7 +153,7 @@ func (h *Handler) ValueJSON(w http.ResponseWriter, r *http.Request) {
 
 	switch m.MType {
 	case MetricGauge:
-		value, err := h.storage.GetGaugeValue(r.Context(), m.ID)
+		value, err := h.repo.GetGaugeValue(r.Context(), m.ID)
 		if err != nil {
 			h.log.Info("Failed to get gauge metrics",
 				zap.Int("status code", http.StatusNotFound),
@@ -166,7 +166,7 @@ func (h *Handler) ValueJSON(w http.ResponseWriter, r *http.Request) {
 
 		m.Value = &value
 	case MetricCounter:
-		value, err := h.storage.GetCounterValue(r.Context(), m.ID)
+		value, err := h.repo.GetCounterValue(r.Context(), m.ID)
 		if err != nil {
 			h.log.Info("Failed to get counter metrics",
 				zap.Int("status code", http.StatusNotFound),
@@ -209,12 +209,12 @@ func (h *Handler) ValueJSON(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) AllMetrics(ctx context.Context) ([]byte, error) {
-	cntMetrics, err := h.storage.AllCounterMetrics(ctx)
+	cntMetrics, err := h.repo.AllCounterMetrics(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	ggMetrics, err := h.storage.AllGaugeMetrics(ctx)
+	ggMetrics, err := h.repo.AllGaugeMetrics(ctx)
 	if err != nil {
 		return nil, err
 	}

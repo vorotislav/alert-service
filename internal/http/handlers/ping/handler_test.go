@@ -2,14 +2,15 @@ package ping
 
 import (
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/vorotislav/alert-service/internal/http/handlers/ping/mocks"
 	"github.com/vorotislav/alert-service/internal/http/middlewares"
-	"net/http"
-	"net/http/httptest"
-	"testing"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"

@@ -16,20 +16,20 @@ const (
 	MetricGauge   = "gauge"
 )
 
-type Storage interface {
+type Repository interface {
 	UpdateGauge(ctx context.Context, name string, value float64) (float64, error)
 	UpdateCounter(ctx context.Context, name string, value int64) (int64, error)
 }
 
 type Handler struct {
-	log     *zap.Logger
-	storage Storage
+	log  *zap.Logger
+	repo Repository
 }
 
-func NewHandler(log *zap.Logger, storage Storage) *Handler {
+func NewHandler(log *zap.Logger, repo Repository) *Handler {
 	return &Handler{
-		log:     log,
-		storage: storage,
+		log:  log,
+		repo: repo,
 	}
 }
 
@@ -63,7 +63,7 @@ func (h *Handler) updateCounter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.storage.UpdateCounter(r.Context(), metricName, metricValue)
+	_, err = h.repo.UpdateCounter(r.Context(), metricName, metricValue)
 	if err != nil {
 		h.log.Info("Failed to update counter metrics",
 			zap.Int("status code", http.StatusInternalServerError),
@@ -97,7 +97,7 @@ func (h *Handler) updateGauge(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.storage.UpdateGauge(r.Context(), metricName, metricValue)
+	_, err = h.repo.UpdateGauge(r.Context(), metricName, metricValue)
 	if err != nil {
 		h.log.Info("Failed to update gauge metrics",
 			zap.Int("status code", http.StatusInternalServerError),
@@ -162,7 +162,7 @@ func (h *Handler) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		newValue, err := h.storage.UpdateGauge(r.Context(), m.ID, *m.Value)
+		newValue, err := h.repo.UpdateGauge(r.Context(), m.ID, *m.Value)
 		if err != nil {
 			h.log.Info("Failed update metrics",
 				zap.Error(err))
@@ -183,7 +183,7 @@ func (h *Handler) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		newValue, err := h.storage.UpdateCounter(r.Context(), m.ID, *m.Delta)
+		newValue, err := h.repo.UpdateCounter(r.Context(), m.ID, *m.Delta)
 		if err != nil {
 			h.log.Info("Failed update metrics",
 				zap.Error(err))

@@ -3,7 +3,9 @@ package value
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
+	"errors"
+	"github.com/golang/mock/gomock"
+	"github.com/vorotislav/alert-service/internal/http/handlers/value/mocks"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -21,31 +23,6 @@ import (
 	"go.uber.org/zap"
 )
 
-type stubStorage struct{}
-
-func (s *stubStorage) GetCounterValue(name string) (int64, error) {
-	if name == "PollCount" {
-		return 15, nil
-	}
-
-	return 0, fmt.Errorf("some error")
-}
-
-func (s *stubStorage) GetGaugeValue(name string) (float64, error) {
-	if name == "mymetric" {
-		return 11.1, nil
-	}
-	return 0, nil
-}
-
-func (s *stubStorage) AllGaugeMetrics() ([]byte, error) {
-	return nil, nil
-}
-
-func (s *stubStorage) AllCounterMetrics() ([]byte, error) {
-	return nil, nil
-}
-
 func TestHandler_Value(t *testing.T) {
 	t.Parallel()
 
@@ -54,13 +31,17 @@ func TestHandler_Value(t *testing.T) {
 
 	tests := []struct {
 		name           string
+		prepareRepo    func(repository *mocks.MockRepository)
 		giveMethod     string
 		givePath       string
 		wantStatusCode int
 		wantValue      float64
 	}{
 		{
-			name:           "success counter",
+			name: "success counter",
+			prepareRepo: func(repository *mocks.MockRepository) {
+				repository.EXPECT().GetCounterValue(gomock.Any(), gomock.Any()).Return(int64(15), nil)
+			},
 			giveMethod:     http.MethodGet,
 			givePath:       "/value/counter/PollCount",
 			wantStatusCode: http.StatusOK,
@@ -73,7 +54,10 @@ func TestHandler_Value(t *testing.T) {
 			wantStatusCode: http.StatusMethodNotAllowed,
 		},
 		{
-			name:           "success",
+			name: "success",
+			prepareRepo: func(repository *mocks.MockRepository) {
+				repository.EXPECT().GetGaugeValue(gomock.Any(), gomock.Any()).Return(float64(11.1), nil)
+			},
 			giveMethod:     http.MethodGet,
 			givePath:       "/value/gauge/mymetric",
 			wantStatusCode: http.StatusOK,
@@ -93,9 +77,18 @@ func TestHandler_Value(t *testing.T) {
 			t.Parallel()
 
 			r := chi.NewRouter()
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			m := mocks.NewMockRepository(ctrl)
+			if tc.prepareRepo != nil {
+				tc.prepareRepo(m)
+			}
+
 			h := &Handler{
-				log:     log,
-				storage: &stubStorage{},
+				log:  log,
+				repo: m,
 			}
 			r.Use(middlewares.New(log))
 
@@ -147,13 +140,17 @@ func TestHandler_ValueJSON(t *testing.T) {
 
 	tests := []struct {
 		name           string
+		prepareRepo    func(repository *mocks.MockRepository)
 		giveMethod     string
 		giveBody       []byte
 		wantStatusCode int
 		wantMetric     model.Metrics
 	}{
 		{
-			name:           "success counter",
+			name: "success counter",
+			prepareRepo: func(repository *mocks.MockRepository) {
+				repository.EXPECT().GetCounterValue(gomock.Any(), gomock.Any()).Return(int64(15), nil)
+			},
 			giveMethod:     http.MethodPost,
 			giveBody:       []byte(`{"id":"PollCount", "type":"counter"}`),
 			wantStatusCode: http.StatusOK,
@@ -170,13 +167,19 @@ func TestHandler_ValueJSON(t *testing.T) {
 			wantStatusCode: http.StatusMethodNotAllowed,
 		},
 		{
-			name:           "Counter not found",
+			name: "Counter not found",
+			prepareRepo: func(repository *mocks.MockRepository) {
+				repository.EXPECT().GetCounterValue(gomock.Any(), gomock.Any()).Return(int64(0), errors.New("some error"))
+			},
 			giveMethod:     http.MethodPost,
 			giveBody:       []byte(`{"id":"some name", "type":"counter"}`),
 			wantStatusCode: http.StatusNotFound,
 		},
 		{
-			name:           "success gauge",
+			name: "success gauge",
+			prepareRepo: func(repository *mocks.MockRepository) {
+				repository.EXPECT().GetGaugeValue(gomock.Any(), gomock.Any()).Return(float64(11.1), nil)
+			},
 			giveBody:       []byte(`{"id":"mymetric", "type":"gauge"}`),
 			giveMethod:     http.MethodPost,
 			wantStatusCode: http.StatusOK,
@@ -200,9 +203,18 @@ func TestHandler_ValueJSON(t *testing.T) {
 			t.Parallel()
 
 			r := chi.NewRouter()
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			m := mocks.NewMockRepository(ctrl)
+			if tc.prepareRepo != nil {
+				tc.prepareRepo(m)
+			}
+
 			h := &Handler{
-				log:     log,
-				storage: &stubStorage{},
+				log:  log,
+				repo: m,
 			}
 			r.Use(middlewares.New(log))
 			r.Use(middlewares.CompressMiddleware)

@@ -2,26 +2,19 @@ package update
 
 import (
 	"bytes"
-	"github.com/go-chi/chi/v5"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/vorotislav/alert-service/internal/http/middlewares"
-	"go.uber.org/zap"
+	"github.com/golang/mock/gomock"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/vorotislav/alert-service/internal/http/handlers/update/mocks"
+	"github.com/vorotislav/alert-service/internal/http/middlewares"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
-
-type stubStorage struct {
-}
-
-func (m *stubStorage) UpdateCounter(_ string, _ int64) (int64, error) {
-	return 0, nil
-}
-
-func (m *stubStorage) UpdateGauge(_ string, _ float64) (float64, error) {
-	return 0, nil
-}
 
 func TestHandler_Update(t *testing.T) {
 	t.Parallel()
@@ -31,12 +24,16 @@ func TestHandler_Update(t *testing.T) {
 
 	tests := []struct {
 		name           string
+		prepareRepo    func(repository *mocks.MockRepository)
 		giveMethod     string
 		givePath       string
 		wantStatusCode int
 	}{
 		{
-			name:           "success counter",
+			name: "success counter",
+			prepareRepo: func(repository *mocks.MockRepository) {
+				repository.EXPECT().UpdateCounter(gomock.Any(), gomock.Any(), gomock.Any()).Return(int64(1), nil)
+			},
 			givePath:       "/update/counter/someMetric/1",
 			giveMethod:     http.MethodPost,
 			wantStatusCode: http.StatusOK,
@@ -60,7 +57,10 @@ func TestHandler_Update(t *testing.T) {
 			wantStatusCode: http.StatusBadRequest,
 		},
 		{
-			name:           "success gauge",
+			name: "success gauge",
+			prepareRepo: func(repository *mocks.MockRepository) {
+				repository.EXPECT().UpdateGauge(gomock.Any(), gomock.Any(), gomock.Any()).Return(float64(1), nil)
+			},
 			giveMethod:     http.MethodPost,
 			givePath:       "/update/gauge/someMetric/1",
 			wantStatusCode: http.StatusOK,
@@ -89,9 +89,18 @@ func TestHandler_Update(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			r := chi.NewRouter()
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			m := mocks.NewMockRepository(ctrl)
+			if tt.prepareRepo != nil {
+				tt.prepareRepo(m)
+			}
+
 			h := &Handler{
-				log:     log,
-				storage: &stubStorage{},
+				log:  log,
+				repo: m,
 			}
 
 			r.Use(middlewares.New(log))
@@ -126,12 +135,16 @@ func TestHandler_UpdateJSON(t *testing.T) {
 
 	tests := []struct {
 		name           string
+		prepareRepo    func(repository *mocks.MockRepository)
 		giveMethod     string
 		giveBody       []byte
 		wantStatusCode int
 	}{
 		{
-			name:           "success counter",
+			name: "success counter",
+			prepareRepo: func(repository *mocks.MockRepository) {
+				repository.EXPECT().UpdateCounter(gomock.Any(), gomock.Any(), gomock.Any()).Return(int64(1), nil)
+			},
 			giveBody:       []byte(`{"id":"some counter", "type":"counter", "delta":1}`),
 			giveMethod:     http.MethodPost,
 			wantStatusCode: http.StatusOK,
@@ -149,7 +162,10 @@ func TestHandler_UpdateJSON(t *testing.T) {
 			wantStatusCode: http.StatusBadRequest,
 		},
 		{
-			name:           "success gauge",
+			name: "success gauge",
+			prepareRepo: func(repository *mocks.MockRepository) {
+				repository.EXPECT().UpdateGauge(gomock.Any(), gomock.Any(), gomock.Any()).Return(float64(1), nil)
+			},
 			giveMethod:     http.MethodPost,
 			giveBody:       []byte(`{"id":"some metrics", "type":"gauge", "value":1}`),
 			wantStatusCode: http.StatusOK,
@@ -171,9 +187,18 @@ func TestHandler_UpdateJSON(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			r := chi.NewRouter()
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			m := mocks.NewMockRepository(ctrl)
+			if tt.prepareRepo != nil {
+				tt.prepareRepo(m)
+			}
+
 			h := &Handler{
-				log:     log,
-				storage: &stubStorage{},
+				log:  log,
+				repo: m,
 			}
 
 			r.Use(middlewares.New(log))
