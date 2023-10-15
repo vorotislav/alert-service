@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/vorotislav/alert-service/internal/model"
 	"github.com/vorotislav/alert-service/internal/settings/server"
 	"go.uber.org/zap"
 	"os"
@@ -180,4 +181,8 @@ func (m *MemStorage) Ping(_ context.Context) error {
 	}
 
 	return nil
+}
+
+func (m *MemStorage) UpdateMetrics(_ context.Context, _ []model.Metrics) error {
+	return fmt.Errorf("cannot update metrics in local storage")
 }

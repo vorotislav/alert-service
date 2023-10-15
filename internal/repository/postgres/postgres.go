@@ -232,3 +232,80 @@ func (s *Storage) AllGaugeMetrics(ctx context.Context) ([]byte, error) {
 
 	return bytes, nil
 }
+
+func (s *Storage) UpdateMetrics(ctx context.Context, metrics []model.Metrics) error {
+	counters := make([]model.Metrics, 0)
+	gauges := make([]model.Metrics, 0)
+	for _, m := range metrics {
+		if m.MType == MetricTypeCounter {
+			counters = append(counters, m)
+		} else {
+			gauges = append(gauges, m)
+		}
+	}
+
+	if err := s.updateGauges(ctx, gauges); err != nil {
+		return fmt.Errorf("cannot update gauge metrics: %w", err)
+	}
+
+	if err := s.updateCounters(ctx, counters); err != nil {
+		return fmt.Errorf("cannot update counter metrics: %w", err)
+	}
+
+	return nil
+}
+
+func (s *Storage) updateCounters(ctx context.Context, metrics []model.Metrics) error {
+	for _, m := range metrics {
+		_, err := s.UpdateCounter(ctx, m.ID, *m.Delta)
+		if err != nil {
+			return fmt.Errorf("cannot update counter metric: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func (s *Storage) updateGauges(ctx context.Context, metrics []model.Metrics) error {
+	qU := "UPDATE metrics SET value = $1 WHERE name = $2"
+	qS := "SELECT value FROM metrics WHERE name = $1"
+	qI := "INSERT INTO metrics (name, type, value) VALUES ($1, $2, $3)"
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("cannot start transaction for update gauge metrics: %w", err)
+	}
+
+	for _, m := range metrics {
+		var value float64
+		err := tx.QueryRow(ctx, qS, m.ID).Scan(&value)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				_, err = tx.Exec(ctx, qI, m.ID, MetricTypeGauge, *m.Value)
+				if err != nil {
+					_ = tx.Rollback(ctx)
+
+					return fmt.Errorf("cannot insert gauge metric: %w", err)
+				}
+
+				continue
+			}
+		}
+
+		_, err = tx.Exec(ctx, qU, *m.Value, m.ID)
+		if err != nil {
+			_ = tx.Rollback(ctx)
+
+			return fmt.Errorf("cannot update gauge metric: %w", err)
+		}
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		_ = tx.Rollback(ctx)
+
+		return fmt.Errorf("cannot commit gauge metrics: %w", err)
+	}
+
+	return nil
+}
