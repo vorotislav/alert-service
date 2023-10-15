@@ -38,11 +38,11 @@ func NewClient(logger *zap.Logger, set *agent.Settings) *Client {
 
 func (c *Client) SendMetrics(metrics map[string]*model.Metrics) error {
 
-	newMetrics := make([]model.Metrics, 0, len(metrics))
-	for _, m := range metrics {
-		m := m
-		newMetrics = append(newMetrics, *m)
-	}
+	//newMetrics := make([]model.Metrics, 0, len(metrics))
+	//for _, m := range metrics {
+	//	m := m
+	//	newMetrics = append(newMetrics, *m)
+	//}
 
 	//if err := c.sendMetrics(newMetrics); err != nil {
 	//	return fmt.Errorf("cannot send metrics: %w", err)
