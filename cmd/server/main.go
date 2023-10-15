@@ -30,6 +30,8 @@ func main() {
 	defer logger.Sync()
 
 	logger.Debug("Server starting...")
+	logger.Debug("Restore flag: ", zap.Bool("flag", *sets.Restore))
+	logger.Debug("File path: ", zap.String("path", sets.FileStoragePath))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	oss := signals.NewOSSignals(ctx)
