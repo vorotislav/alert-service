@@ -1,4 +1,4 @@
-package storage
+package localstorage
 
 import (
 	"context"
@@ -12,7 +12,8 @@ import (
 )
 
 var (
-	ErrNotFound = errors.New("metrics not found")
+	ErrNotFound            = errors.New("metrics not found")
+	ErrStorageNotAvailable = errors.New("storage not available")
 )
 
 type MemStorage struct {
@@ -78,7 +79,7 @@ func (m *MemStorage) Stop(_ context.Context) error {
 	return nil
 }
 
-func (m *MemStorage) UpdateCounter(name string, value int64) (int64, error) {
+func (m *MemStorage) UpdateCounter(_ context.Context, name string, value int64) (int64, error) {
 	oldValue := m.CounterMetrics[name]
 	oldValue += value
 	m.CounterMetrics[name] = oldValue
@@ -86,7 +87,7 @@ func (m *MemStorage) UpdateCounter(name string, value int64) (int64, error) {
 	return oldValue, nil
 }
 
-func (m *MemStorage) GetCounterValue(name string) (int64, error) {
+func (m *MemStorage) GetCounterValue(_ context.Context, name string) (int64, error) {
 	value, ok := m.CounterMetrics[name]
 	if !ok {
 		return 0, ErrNotFound
@@ -95,7 +96,7 @@ func (m *MemStorage) GetCounterValue(name string) (int64, error) {
 	return value, nil
 }
 
-func (m *MemStorage) AllCounterMetrics() ([]byte, error) {
+func (m *MemStorage) AllCounterMetrics(_ context.Context) ([]byte, error) {
 	resp, err := json.Marshal(m.CounterMetrics)
 	if err != nil {
 		return nil, err
@@ -104,13 +105,13 @@ func (m *MemStorage) AllCounterMetrics() ([]byte, error) {
 	return resp, nil
 }
 
-func (m *MemStorage) UpdateGauge(name string, value float64) (float64, error) {
+func (m *MemStorage) UpdateGauge(_ context.Context, name string, value float64) (float64, error) {
 	m.GaugeMetrics[name] = value
 
 	return value, nil
 }
 
-func (m *MemStorage) GetGaugeValue(name string) (float64, error) {
+func (m *MemStorage) GetGaugeValue(_ context.Context, name string) (float64, error) {
 	value, ok := m.GaugeMetrics[name]
 	if !ok {
 		return 0, ErrNotFound
@@ -119,7 +120,7 @@ func (m *MemStorage) GetGaugeValue(name string) (float64, error) {
 	return value, nil
 }
 
-func (m *MemStorage) AllGaugeMetrics() ([]byte, error) {
+func (m *MemStorage) AllGaugeMetrics(_ context.Context) ([]byte, error) {
 	resp, err := json.Marshal(m.GaugeMetrics)
 	if err != nil {
 		return nil, err
@@ -171,4 +172,12 @@ func (m *MemStorage) asyncLoop(ctx context.Context, timeout int) {
 			}
 		}
 	}
+}
+
+func (m *MemStorage) Ping(_ context.Context) error {
+	if m.file == nil {
+		return ErrStorageNotAvailable
+	}
+
+	return nil
 }
