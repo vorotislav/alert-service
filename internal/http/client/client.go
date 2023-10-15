@@ -44,16 +44,16 @@ func (c *Client) SendMetrics(metrics map[string]*model.Metrics) error {
 		newMetrics = append(newMetrics, *m)
 	}
 
-	if err := c.sendMetrics(newMetrics); err != nil {
-		return fmt.Errorf("cannot send metrics: %w", err)
-	}
-
-	//for _, m := range metrics {
-	//	m := m
-	//	if err := c.sendMetric(m); err != nil {
-	//		return err
-	//	}
+	//if err := c.sendMetrics(newMetrics); err != nil {
+	//	return fmt.Errorf("cannot send metrics: %w", err)
 	//}
+
+	for _, m := range metrics {
+		m := m
+		if err := c.sendMetric(m); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
