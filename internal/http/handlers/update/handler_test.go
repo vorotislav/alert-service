@@ -145,20 +145,20 @@ func TestHandler_UpdateJSON(t *testing.T) {
 			prepareRepo: func(repository *mocks.MockRepository) {
 				repository.EXPECT().UpdateCounter(gomock.Any(), gomock.Any(), gomock.Any()).Return(int64(1), nil)
 			},
-			giveBody:       []byte(`{"id":"some counter", "type":"counter", "delta":1}`),
+			giveBody:       []byte(`{"id":"some counter", "mtype":"counter", "delta":1}`),
 			giveMethod:     http.MethodPost,
 			wantStatusCode: http.StatusOK,
 		},
 		{
 			name:           "method not allowed counter",
 			giveMethod:     http.MethodGet,
-			giveBody:       []byte(`{"id":"some counter", "type":"counter", "delta":1}`),
+			giveBody:       []byte(`{"id":"some counter", "mtype":"counter", "delta":1}`),
 			wantStatusCode: http.StatusMethodNotAllowed,
 		},
 		{
 			name:           "bad request counter",
 			giveMethod:     http.MethodPost,
-			giveBody:       []byte(`{"name":"some counter", "type":"azaza", "delta":1}`),
+			giveBody:       []byte(`{"name":"some counter", "mtype":"azaza", "delta":1}`),
 			wantStatusCode: http.StatusBadRequest,
 		},
 		{
@@ -167,19 +167,19 @@ func TestHandler_UpdateJSON(t *testing.T) {
 				repository.EXPECT().UpdateGauge(gomock.Any(), gomock.Any(), gomock.Any()).Return(float64(1), nil)
 			},
 			giveMethod:     http.MethodPost,
-			giveBody:       []byte(`{"id":"some metrics", "type":"gauge", "value":1}`),
+			giveBody:       []byte(`{"id":"some metrics", "mtype":"gauge", "value":1}`),
 			wantStatusCode: http.StatusOK,
 		},
 		{
 			name:           "method not allowed gauge",
 			giveMethod:     http.MethodGet,
-			giveBody:       []byte(`{"id":"some metrics", "type":"gauge", "value":1}`),
+			giveBody:       []byte(`{"id":"some metrics", "mtype":"gauge", "value":1}`),
 			wantStatusCode: http.StatusMethodNotAllowed,
 		},
 		{
 			name:           "bad request gauge",
 			giveMethod:     http.MethodPost,
-			giveBody:       []byte(`{"id":"some metrics", "type":"gauge"}`),
+			giveBody:       []byte(`{"id":"some metrics", "mtype":"gauge"}`),
 			wantStatusCode: http.StatusBadRequest,
 		},
 	}

@@ -34,7 +34,7 @@ func TestHandler_Updates(t *testing.T) {
 				repository.EXPECT().UpdateMetrics(gomock.Any(), gomock.Any()).Return(nil)
 			},
 			giveMethod:     http.MethodPost,
-			giveBody:       []byte(`[{"id":"some counter", "type":"counter", "delta":1},{"id":"some counter", "type":"counter", "delta":1}]`),
+			giveBody:       []byte(`[{"id":"some counter", "mtype":"counter", "delta":1},{"id":"some counter", "type":"counter", "delta":1}]`),
 			wantStatusCode: http.StatusOK,
 		},
 		{
@@ -43,13 +43,13 @@ func TestHandler_Updates(t *testing.T) {
 				repository.EXPECT().UpdateMetrics(gomock.Any(), gomock.Any()).Return(errors.New("some error"))
 			},
 			giveMethod:     http.MethodPost,
-			giveBody:       []byte(`[{"id":"some counter", "type":"counter", "delta":1},{"id":"some counter", "type":"counter", "delta":1}]`),
+			giveBody:       []byte(`[{"id":"some counter", "mtype":"counter", "delta":1},{"id":"some counter", "type":"counter", "delta":1}]`),
 			wantStatusCode: http.StatusBadRequest,
 		},
 		{
 			name:           "failed update cannot decode",
 			giveMethod:     http.MethodPost,
-			giveBody:       []byte(`[{"id":"some counter", "type":"counter", "delta":1},{"id":"some counter", "type":"counter", "delta":`),
+			giveBody:       []byte(`[{"id":"some counter", "mtype":"counter", "delta":1},{"id":"some counter", "type":"counter", "delta":`),
 			wantStatusCode: http.StatusBadRequest,
 		},
 	}
