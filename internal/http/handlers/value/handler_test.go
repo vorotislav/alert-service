@@ -152,7 +152,7 @@ func TestHandler_ValueJSON(t *testing.T) {
 				repository.EXPECT().GetCounterValue(gomock.Any(), gomock.Any()).Return(int64(15), nil)
 			},
 			giveMethod:     http.MethodPost,
-			giveBody:       []byte(`{"id":"PollCount", "mtype":"counter"}`),
+			giveBody:       []byte(`{"id":"PollCount", "type":"counter"}`),
 			wantStatusCode: http.StatusOK,
 			wantMetric: model.Metrics{
 				ID:    "PollCount",
@@ -163,7 +163,7 @@ func TestHandler_ValueJSON(t *testing.T) {
 		{
 			name:           "not allowed",
 			giveMethod:     http.MethodPut,
-			giveBody:       []byte(`{"id":"PollCount", "mtype":"counter"}`),
+			giveBody:       []byte(`{"id":"PollCount", "type":"counter"}`),
 			wantStatusCode: http.StatusMethodNotAllowed,
 		},
 		{
@@ -172,7 +172,7 @@ func TestHandler_ValueJSON(t *testing.T) {
 				repository.EXPECT().GetCounterValue(gomock.Any(), gomock.Any()).Return(int64(0), errors.New("some error"))
 			},
 			giveMethod:     http.MethodPost,
-			giveBody:       []byte(`{"id":"some name", "mtype":"counter"}`),
+			giveBody:       []byte(`{"id":"some name", "type":"counter"}`),
 			wantStatusCode: http.StatusNotFound,
 		},
 		{
@@ -180,7 +180,7 @@ func TestHandler_ValueJSON(t *testing.T) {
 			prepareRepo: func(repository *mocks.MockRepository) {
 				repository.EXPECT().GetGaugeValue(gomock.Any(), gomock.Any()).Return(float64(11.1), nil)
 			},
-			giveBody:       []byte(`{"id":"mymetric", "mtype":"gauge"}`),
+			giveBody:       []byte(`{"id":"mymetric", "type":"gauge"}`),
 			giveMethod:     http.MethodPost,
 			wantStatusCode: http.StatusOK,
 			wantMetric: model.Metrics{
@@ -192,7 +192,7 @@ func TestHandler_ValueJSON(t *testing.T) {
 		{
 			name:           "bad request of metrics type",
 			giveMethod:     http.MethodPost,
-			giveBody:       []byte(`{"id":"name", "mtype":"azaza"}`),
+			giveBody:       []byte(`{"id":"name", "type":"azaza"}`),
 			wantStatusCode: http.StatusBadRequest,
 		},
 	}

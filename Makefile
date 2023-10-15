@@ -26,3 +26,7 @@ build-mocks: dep
 	@mockgen -destination=internal/http/handlers/update/mocks/mock_repo.go -package=mocks github.com/vorotislav/alert-service/internal/http/handlers/update Repository
 	@mockgen -destination=internal/http/handlers/updates/mocks/mock_repo.go -package=mocks github.com/vorotislav/alert-service/internal/http/handlers/updates Repository
 	@mockgen -destination=internal/http/handlers/value/mocks/mock_repo.go -package=mocks github.com/vorotislav/alert-service/internal/http/handlers/value Repository
+
+build:
+	go build -o ./cmd/server/server ./cmd/server
+	go build -o ./cmd/agent/agent ./cmd/agent
