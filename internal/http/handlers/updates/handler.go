@@ -63,8 +63,15 @@ func (h *Handler) Updates(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
+	size, err := w.Write([]byte(`{}`))
+	if err != nil {
+		h.log.Info("Error of write resp",
+			zap.Error(err),
+			zap.Int("status code", http.StatusInternalServerError),
+			zap.Int("size", 0))
+	}
 
 	h.log.Info("Success update metrics",
 		zap.Int("status code", http.StatusOK),
-		zap.Int("size", 0))
+		zap.Int("size", size))
 }
