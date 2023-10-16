@@ -34,7 +34,7 @@ func TestHandler_Updates(t *testing.T) {
 				repository.EXPECT().UpdateMetrics(gomock.Any(), gomock.Any()).Return(nil)
 			},
 			giveMethod:     http.MethodPost,
-			giveBody:       []byte(`[{"id":"some counter", "mtype":"counter", "delta":1},{"id":"some counter", "type":"counter", "delta":1}]`),
+			giveBody:       []byte(`[{"id":"some counter", "mtype":"counter", "delta":1},{"id":"some gauge", "type":"gauge", "value":1.1}]`),
 			wantStatusCode: http.StatusOK,
 		},
 		{

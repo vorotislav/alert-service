@@ -28,12 +28,13 @@ type Repository interface {
 }
 
 type Service struct {
-	logger        *zap.Logger
-	server        *http.Server
-	updateHandler *update.Handler
-	valueHandler  *value.Handler
-	pingHandler   *ping.Handler
-	repo          Repository
+	logger         *zap.Logger
+	server         *http.Server
+	updateHandler  *update.Handler
+	valueHandler   *value.Handler
+	pingHandler    *ping.Handler
+	updatesHandler *updates.Handler
+	repo           Repository
 }
 
 func NewService(_ context.Context, log *zap.Logger, set *server.Settings, repo Repository) (*Service, error) {
@@ -109,12 +110,13 @@ func NewService(_ context.Context, log *zap.Logger, set *server.Settings, repo R
 	}
 
 	return &Service{
-		logger:        log.With(zap.String("package", "service")),
-		server:        hs,
-		repo:          repo,
-		updateHandler: updateMetricHandler,
-		valueHandler:  valueMetricHandler,
-		pingHandler:   pingHandler,
+		logger:         log.With(zap.String("package", "service")),
+		server:         hs,
+		repo:           repo,
+		updateHandler:  updateMetricHandler,
+		valueHandler:   valueMetricHandler,
+		pingHandler:    pingHandler,
+		updatesHandler: updatesMetricHandler,
 	}, nil
 }
 

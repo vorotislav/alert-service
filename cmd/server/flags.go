@@ -7,28 +7,39 @@ import (
 )
 
 func parseFlag(sets *server.Settings) {
+	var address string
+	flag.StringVar(&address, "a", ":8080", "address and port to run server")
+	var restore bool
+	flag.BoolVar(&restore, "r", true, "restore old metrics")
+	var interval int
+	flag.IntVar(&interval, "i", 300, "store interval, sec")
+
+	var databaseDSN string
+	flag.StringVar(&databaseDSN, "d", "", "database dsn")
+
+	var storagePath string
+	flag.StringVar(&storagePath, "f", "/tmp/metrics-db.json", "file localstorage path")
+
+	flag.Parse()
+
 	if err := env.Parse(sets); err == nil {
 		if sets.Address == "" {
-			flag.StringVar(&sets.Address, "a", ":8080", "address and port to run server")
+			sets.Address = address
 		}
 		if sets.FileStoragePath == "" {
-			flag.StringVar(&sets.FileStoragePath, "f", "/tmp/metrics-db.json", "file localstorage path")
+			sets.FileStoragePath = storagePath
 		}
 		if sets.StoreInterval == nil {
-			var interval int
-			flag.IntVar(&interval, "i", 300, "store interval, sec")
 			sets.StoreInterval = &interval
 		}
 		if sets.Restore == nil {
-			var restore bool
-			flag.BoolVar(&restore, "r", true, "restore old metrics")
 			sets.Restore = &restore
 		}
 		if sets.DatabaseDSN == "" {
-			flag.StringVar(&sets.DatabaseDSN, "d", "", "database dsn")
+			sets.DatabaseDSN = databaseDSN
 		}
 	}
 
 	// user=postgres password=postgres host=127.0.0.1 port=5432 dbname=alert_service pool_max_conns=10
-	flag.Parse()
+	//flag.Parse()
 }
