@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/vorotislav/alert-service/internal/utils"
+	"io"
 	"net/http"
+	"time"
 
 	"github.com/vorotislav/alert-service/internal/model"
 	"github.com/vorotislav/alert-service/internal/settings/agent"
@@ -18,6 +20,11 @@ var (
 	ErrSendMetrics = errors.New("cannot send metrics")
 )
 
+const (
+	maxRetryAttempt = 4
+	retryDelay      = 2
+)
+
 type Client struct {
 	dc        *http.Client
 	logger    *zap.Logger
@@ -27,8 +34,10 @@ type Client struct {
 
 func NewClient(logger *zap.Logger, set *agent.Settings) *Client {
 	c := &Client{
-		dc:        http.DefaultClient,
-		logger:    logger.With(zap.String("package", "client")),
+		dc: &http.Client{
+			Timeout: time.Millisecond * 500,
+		},
+		logger:    logger,
 		set:       set,
 		serverURL: fmt.Sprintf("http://%s/update", set.ServerAddress),
 	}
@@ -133,7 +142,7 @@ func (c *Client) sendMetric(metric *model.Metrics) error {
 	req.Header.Set("Accept-Encoding", "gzip")
 	req.Header.Set("Content-Encoding", "gzip")
 
-	resp, err := c.dc.Do(req)
+	resp, err := c.retryDo(req)
 	if err != nil {
 		c.logger.Error("cannot send metric", zap.Error(err))
 
@@ -155,4 +164,75 @@ func (c *Client) sendMetric(metric *model.Metrics) error {
 	}
 
 	return nil
+}
+
+func (c *Client) retryDo(req *http.Request) (*http.Response, error) {
+	var (
+		originalBody []byte
+		err          error
+	)
+
+	if req != nil && req.Body != nil {
+		originalBody, err = copyBody(req.Body)
+		resetBody(req, originalBody)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	var resp *http.Response
+
+	delay := time.Second
+
+	for i := 1; i <= maxRetryAttempt; i++ {
+		c.logger.Debug("Send request", zap.Int("attempt", i))
+		resp, err = c.dc.Do(req)
+
+		if err == nil && resp.StatusCode < http.StatusInternalServerError {
+			return resp, nil
+		}
+
+		if err != nil {
+			c.logger.Debug("error sending", zap.String("", err.Error()))
+		}
+
+		if resp != nil {
+			c.logger.Debug("error sending", zap.Int("status code", resp.StatusCode))
+
+			resp.Body.Close()
+		}
+
+		if req.Body != nil {
+			resetBody(req, originalBody)
+		}
+
+		if i == maxRetryAttempt {
+			break
+		}
+
+		newDelay := delay + (retryDelay * time.Second)
+
+		c.logger.Debug("next attempt in", zap.String("sec", delay.String()))
+		time.Sleep(delay)
+		delay = newDelay
+	}
+
+	return resp, err
+}
+
+func copyBody(src io.ReadCloser) ([]byte, error) {
+	b, err := io.ReadAll(src)
+	if err != nil {
+		return nil, fmt.Errorf("reading request body")
+	}
+	src.Close()
+	return b, nil
+}
+
+func resetBody(request *http.Request, originalBody []byte) {
+	request.Body = io.NopCloser(bytes.NewBuffer(originalBody))
+	request.GetBody = func() (io.ReadCloser, error) {
+		return io.NopCloser(bytes.NewBuffer(originalBody)), nil
+	}
 }
