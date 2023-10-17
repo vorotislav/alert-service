@@ -6,8 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/vorotislav/alert-service/internal/model"
+	"time"
 
 	"github.com/vorotislav/alert-service/internal/settings/server"
 
@@ -27,6 +30,11 @@ var (
 	ErrSourceInstance = errors.New("cannot create migrate")
 	ErrMigrateUp      = errors.New("cannot migrate up")
 	ErrCreateStorage  = errors.New("cannot create storage")
+)
+
+const (
+	maxRetryAttempt = 4
+	retryDelay      = 2
 )
 
 const (
@@ -99,11 +107,83 @@ func (s *Storage) Stop(_ context.Context) error {
 	return nil
 }
 
+func (s *Storage) retryQueryRow(ctx context.Context, query, param string, result any) error {
+	delay := time.Second
+
+	var err error
+
+	for i := 1; i <= maxRetryAttempt; i++ {
+		s.log.Debug("query row exec", zap.Int("attempt", i))
+
+		err = s.pool.QueryRow(ctx, query, param).Scan(result)
+		if err == nil {
+			return nil
+		}
+
+		s.log.Debug("cannot exec query row", zap.String("", err.Error()))
+
+		var pgErr *pgconn.PgError
+		if !errors.As(err, &pgErr) {
+			return err
+		}
+
+		if errors.As(err, &pgErr) && pgerrcode.IsConnectionException(pgErr.Code) {
+			if i == maxRetryAttempt {
+				break
+			}
+
+			newDelay := delay + (retryDelay * time.Second)
+
+			s.log.Debug("next attempt in", zap.String("sec", delay.String()))
+			time.Sleep(delay)
+			delay = newDelay
+		}
+	}
+
+	return err
+}
+
+func (s *Storage) retryExec(ctx context.Context, query string, arguments ...any) error {
+	delay := time.Second
+
+	var err error
+
+	for i := 1; i < maxRetryAttempt; i++ {
+		s.log.Debug("exec", zap.Int("attempt", i))
+
+		_, err = s.pool.Exec(ctx, query, arguments...)
+		if err == nil {
+			return nil
+		}
+
+		s.log.Debug("cannot exec", zap.String("", err.Error()))
+
+		var pgErr *pgconn.PgError
+		if !errors.As(err, &pgErr) {
+			return err
+		}
+
+		if errors.As(err, &pgErr) && pgerrcode.IsConnectionException(pgErr.Code) {
+			if i == maxRetryAttempt {
+				break
+			}
+
+			newDelay := delay + (retryDelay * time.Second)
+
+			s.log.Debug("next attempt in", zap.String("sec", delay.String()))
+			time.Sleep(delay)
+			delay = newDelay
+		}
+	}
+
+	return err
+}
+
 func (s *Storage) UpdateCounter(ctx context.Context, name string, value int64) (int64, error) {
 	delta, err := s.GetCounterValue(ctx, name)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			_, err := s.pool.Exec(ctx, "INSERT INTO metrics (name, type, delta) VALUES ($1, $2, $3)",
+			err := s.retryExec(ctx, "INSERT INTO metrics (name, type, delta) VALUES ($1, $2, $3)",
 				name, MetricTypeCounter, value)
 			if err != nil {
 				return 0, err
@@ -117,7 +197,7 @@ func (s *Storage) UpdateCounter(ctx context.Context, name string, value int64) (
 
 	delta += value
 
-	_, err = s.pool.Exec(ctx, "UPDATE metrics SET delta = $1 WHERE name = $2", delta, name)
+	err = s.retryExec(ctx, "UPDATE metrics SET delta = $1 WHERE name = $2", delta, name)
 	if err != nil {
 		return 0, err
 	}
@@ -127,7 +207,8 @@ func (s *Storage) UpdateCounter(ctx context.Context, name string, value int64) (
 
 func (s *Storage) GetCounterValue(ctx context.Context, name string) (int64, error) {
 	var delta int64
-	err := s.pool.QueryRow(ctx, "SELECT delta FROM metrics WHERE name = $1", name).Scan(&delta)
+
+	err := s.retryQueryRow(ctx, "SELECT delta FROM metrics WHERE name = $1", name, &delta)
 	if err != nil {
 		return 0, err
 	}
@@ -172,7 +253,7 @@ func (s *Storage) UpdateGauge(ctx context.Context, name string, value float64) (
 	_, err := s.GetGaugeValue(ctx, name)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			_, err = s.pool.Exec(ctx,
+			err = s.retryExec(ctx,
 				"INSERT INTO metrics (name, type, value) VALUES ($1, $2, $3)", name, MetricTypeGauge, value)
 			if err != nil {
 				return 0, err
@@ -182,7 +263,7 @@ func (s *Storage) UpdateGauge(ctx context.Context, name string, value float64) (
 		return 0, err
 	}
 
-	_, err = s.pool.Exec(ctx, "UPDATE metrics SET value = $1 WHERE name = $2", value, name)
+	err = s.retryExec(ctx, "UPDATE metrics SET value = $1 WHERE name = $2", value, name)
 	if err != nil {
 		return 0, err
 	}
@@ -192,7 +273,8 @@ func (s *Storage) UpdateGauge(ctx context.Context, name string, value float64) (
 
 func (s *Storage) GetGaugeValue(ctx context.Context, name string) (float64, error) {
 	var value float64
-	err := s.pool.QueryRow(ctx, "SELECT value FROM metrics WHERE name = $1", name).Scan(&value)
+
+	err := s.retryQueryRow(ctx, "SELECT value FROM metrics WHERE name = $1", name, &value)
 	if err != nil {
 		return 0, err
 	}
