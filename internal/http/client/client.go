@@ -2,9 +2,11 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/avast/retry-go"
 	"github.com/vorotislav/alert-service/internal/utils"
 	"io"
 	"net/http"
@@ -59,7 +61,7 @@ func (c *Client) SendMetrics(metrics map[string]*model.Metrics) error {
 
 	for _, m := range metrics {
 		m := m
-		if err := c.sendMetric(m); err != nil {
+		if err := c.sendMetricRetry(m); err != nil {
 			return err
 		}
 	}
@@ -106,6 +108,81 @@ func (c *Client) sendMetrics(metrics []model.Metrics) error {
 
 	if resp != nil {
 		resp.Body.Close()
+	}
+
+	return nil
+}
+
+func (c *Client) sendMetricRetry(metric *model.Metrics) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	raw, err := json.Marshal(metric)
+	if err != nil {
+		c.logger.Error("cannot metric marshal", zap.Error(err))
+
+		return fmt.Errorf("%w: %w", ErrSendMetrics, err)
+	}
+
+	compressRaw, err := utils.Compress(raw)
+	if err != nil {
+		c.logger.Error("cannot compress data", zap.Error(err))
+
+		return fmt.Errorf("%w: %w", ErrSendMetrics, err)
+	}
+
+	req, err := http.NewRequest(
+		http.MethodPost,
+		c.serverURL,
+		bytes.NewBuffer(compressRaw),
+	)
+
+	if err != nil {
+		c.logger.Error("cannot request prepare", zap.Error(err))
+
+		return fmt.Errorf("%w: %w", ErrSendMetrics, err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept-Encoding", "gzip")
+	req.Header.Set("Content-Encoding", "gzip")
+
+	err = retry.Do(
+		func() error {
+			resp, err := c.dc.Do(req)
+			if resp != nil {
+				defer resp.Body.Close()
+			}
+
+			if err != nil {
+				return err
+			}
+
+			return nil
+		},
+		retry.RetryIf(func(err error) bool {
+			if err != nil {
+				return true
+			}
+
+			return false
+		}),
+		retry.Attempts(4),
+		retry.Context(ctx),
+	)
+
+	if err != nil {
+		return err
+	}
+
+	if metric.Value != nil {
+		c.logger.Debug("send metric",
+			zap.String("name", metric.ID),
+			zap.Float64("value", *metric.Value))
+	} else if metric.Delta != nil {
+		c.logger.Debug("send metric",
+			zap.String("name", metric.ID),
+			zap.Int64("value", *metric.Delta))
 	}
 
 	return nil
