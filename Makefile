@@ -20,3 +20,10 @@ cover: dep ## Run app tests with coverage report
 	xdg-open .coverage.html
 	## Remove coverage report
 	sleep 2 && rm -f .coverage.out .coverage.html
+
+build-mocks: dep
+	@mockgen -destination=internal/http/handlers/mocks/mock_repo.go -package=mocks github.com/vorotislav/alert-service/internal/http/handlers Repository
+
+build:
+	go build -o ./cmd/server/server ./cmd/server
+	go build -o ./cmd/agent/agent ./cmd/agent

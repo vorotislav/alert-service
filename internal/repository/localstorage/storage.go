@@ -1,10 +1,11 @@
-package storage
+package localstorage
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/vorotislav/alert-service/internal/model"
 	"github.com/vorotislav/alert-service/internal/settings/server"
 	"go.uber.org/zap"
 	"os"
@@ -12,14 +13,14 @@ import (
 )
 
 var (
-	ErrNotFound = errors.New("metrics not found")
+	ErrNotFound            = errors.New("metrics not found")
+	ErrStorageNotAvailable = errors.New("storage not available")
 )
 
 type MemStorage struct {
-	log            *zap.Logger
-	set            *server.Settings
-	CounterMetrics map[string]int64   `json:"counter_metrics"`
-	GaugeMetrics   map[string]float64 `json:"gauge_metrics"`
+	log     *zap.Logger
+	set     *server.Settings
+	Metrics map[string]model.Metrics `json:"metrics"`
 
 	encoder     *json.Encoder
 	decoder     *json.Decoder
@@ -50,15 +51,14 @@ func NewMemStorage(ctx context.Context, log *zap.Logger, set *server.Settings) (
 		decoder:     json.NewDecoder(file),
 		saveMetrics: saveMetrics,
 	}
-	store.CounterMetrics = make(map[string]int64)
-	store.GaugeMetrics = make(map[string]float64)
+	store.Metrics = make(map[string]model.Metrics)
 
-	if set.StoreInterval > 0 {
-		go store.asyncLoop(ctx, set.StoreInterval)
+	if *set.StoreInterval > 0 {
+		go store.asyncLoop(ctx, *set.StoreInterval)
 		store.async = true
 	}
 
-	if set.Restore {
+	if *set.Restore {
 		if err := store.readMetrics(); err != nil {
 			log.Info("cannot read metrics",
 				zap.Error(err))
@@ -78,25 +78,37 @@ func (m *MemStorage) Stop(_ context.Context) error {
 	return nil
 }
 
-func (m *MemStorage) UpdateCounter(name string, value int64) (int64, error) {
-	oldValue := m.CounterMetrics[name]
-	oldValue += value
-	m.CounterMetrics[name] = oldValue
+func (m *MemStorage) UpdateMetric(_ context.Context, ms model.Metrics) (model.Metrics, error) {
+	metric, ok := m.Metrics[ms.ID]
+	if !ok {
+		m.Metrics[ms.ID] = ms
 
-	return oldValue, nil
+		return ms, nil
+	}
+
+	switch ms.MType {
+	case model.MetricCounter:
+		*metric.Delta += *ms.Delta
+		m.Metrics[ms.ID] = metric
+	default:
+		*metric.Value = *ms.Value
+		m.Metrics[ms.ID] = metric
+	}
+
+	return metric, nil
 }
 
-func (m *MemStorage) GetCounterValue(name string) (int64, error) {
-	value, ok := m.CounterMetrics[name]
+func (m *MemStorage) GetCounterValue(_ context.Context, name string) (int64, error) {
+	metric, ok := m.Metrics[name]
 	if !ok {
 		return 0, ErrNotFound
 	}
 
-	return value, nil
+	return *metric.Delta, nil
 }
 
-func (m *MemStorage) AllCounterMetrics() ([]byte, error) {
-	resp, err := json.Marshal(m.CounterMetrics)
+func (m *MemStorage) AllMetrics(_ context.Context) ([]byte, error) {
+	resp, err := json.Marshal(m.Metrics)
 	if err != nil {
 		return nil, err
 	}
@@ -104,39 +116,21 @@ func (m *MemStorage) AllCounterMetrics() ([]byte, error) {
 	return resp, nil
 }
 
-func (m *MemStorage) UpdateGauge(name string, value float64) (float64, error) {
-	m.GaugeMetrics[name] = value
-
-	return value, nil
-}
-
-func (m *MemStorage) GetGaugeValue(name string) (float64, error) {
-	value, ok := m.GaugeMetrics[name]
+func (m *MemStorage) GetGaugeValue(_ context.Context, name string) (float64, error) {
+	metric, ok := m.Metrics[name]
 	if !ok {
 		return 0, ErrNotFound
 	}
 
-	return value, nil
-}
-
-func (m *MemStorage) AllGaugeMetrics() ([]byte, error) {
-	resp, err := json.Marshal(m.GaugeMetrics)
-	if err != nil {
-		return nil, err
-	}
-
-	return resp, nil
+	return *metric.Value, nil
 }
 
 func (m *MemStorage) writeMetrics() error {
 	//if err := m.file.Truncate(0); err != nil {
 	//	m.log.Info("cannot truncate file", zap.Error(err))
 	//}
-	if err := m.encoder.Encode(m.CounterMetrics); err != nil {
+	if err := m.encoder.Encode(m.Metrics); err != nil {
 		return fmt.Errorf("cannot write counter metrics: %w", err)
-	}
-	if err := m.encoder.Encode(m.GaugeMetrics); err != nil {
-		return fmt.Errorf("cannot write gauge metrics: %w", err)
 	}
 
 	m.file.Seek(0, 0)
@@ -144,12 +138,10 @@ func (m *MemStorage) writeMetrics() error {
 }
 
 func (m *MemStorage) readMetrics() error {
-	if err := m.decoder.Decode(&m.CounterMetrics); err != nil {
-		return fmt.Errorf("cannot read counter metrics: %w", err)
+	if err := m.decoder.Decode(&m.Metrics); err != nil {
+		return fmt.Errorf("cannot read metrics: %w", err)
 	}
-	if err := m.decoder.Decode(&m.GaugeMetrics); err != nil {
-		return fmt.Errorf("cannot read gauge metrics: %w", err)
-	}
+
 	return nil
 }
 
@@ -171,4 +163,16 @@ func (m *MemStorage) asyncLoop(ctx context.Context, timeout int) {
 			}
 		}
 	}
+}
+
+func (m *MemStorage) Ping(_ context.Context) error {
+	if m.file == nil {
+		return ErrStorageNotAvailable
+	}
+
+	return nil
+}
+
+func (m *MemStorage) UpdateMetrics(_ context.Context, _ []model.Metrics) error {
+	return fmt.Errorf("cannot update metrics in local storage")
 }

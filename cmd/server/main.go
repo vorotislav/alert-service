@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"github.com/vorotislav/alert-service/internal/http"
+	"github.com/vorotislav/alert-service/internal/repository"
 	"github.com/vorotislav/alert-service/internal/settings/server"
 	"github.com/vorotislav/alert-service/internal/signals"
 	"go.uber.org/zap"
@@ -28,6 +29,8 @@ func main() {
 	defer logger.Sync()
 
 	logger.Debug("Server starting...")
+	logger.Debug("Restore flag: ", zap.Bool("flag", *sets.Restore))
+	logger.Debug("File path: ", zap.String("path", sets.FileStoragePath))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	oss := signals.NewOSSignals(ctx)
@@ -39,9 +42,19 @@ func main() {
 		cancel()
 	})
 
-	s, err := http.NewService(ctx, logger, &sets)
+	repo, err := repository.NewRepository(ctx, logger, &sets)
+
 	if err != nil {
-		log.Fatal(err)
+		logger.Error("cannot create repository", zap.Error(err))
+
+		return
+	}
+
+	s, err := http.NewService(ctx, logger, &sets, repo)
+	if err != nil {
+		logger.Error("cannot create http service", zap.Error(err))
+
+		return
 	}
 
 	serviceErrCh := make(chan error, 1)
@@ -63,7 +76,9 @@ func main() {
 		logger.Info("Server stopping...")
 		ctxShutdown, ctxCancelShutdown := context.WithTimeout(context.Background(), serviceShutdownTimeout)
 
-		_ = s.Stop(ctxShutdown)
+		if err := s.Stop(ctxShutdown); err != nil {
+			logger.Error("cannot stop server", zap.Error(err))
+		}
 
 		defer ctxCancelShutdown()
 	}

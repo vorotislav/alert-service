@@ -1,7 +1,7 @@
 package agent
 
 type Settings struct {
-	ServerAddress  string
-	ReportInterval int
-	PollInterval   int
+	ServerAddress  string `env:"ADDRESS"`
+	ReportInterval int    `env:"REPORT_INTERVAL"`
+	PollInterval   int    `env:"POLL_INTERVAL"`
 }
