@@ -22,10 +22,7 @@ cover: dep ## Run app tests with coverage report
 	sleep 2 && rm -f .coverage.out .coverage.html
 
 build-mocks: dep
-	@mockgen -destination=internal/http/handlers/ping/mocks/mock_repo.go -package=mocks github.com/vorotislav/alert-service/internal/http/handlers/ping Repository
-	@mockgen -destination=internal/http/handlers/update/mocks/mock_repo.go -package=mocks github.com/vorotislav/alert-service/internal/http/handlers/update Repository
-	@mockgen -destination=internal/http/handlers/updates/mocks/mock_repo.go -package=mocks github.com/vorotislav/alert-service/internal/http/handlers/updates Repository
-	@mockgen -destination=internal/http/handlers/value/mocks/mock_repo.go -package=mocks github.com/vorotislav/alert-service/internal/http/handlers/value Repository
+	@mockgen -destination=internal/http/handlers/mocks/mock_repo.go -package=mocks github.com/vorotislav/alert-service/internal/http/handlers Repository
 
 build:
 	go build -o ./cmd/server/server ./cmd/server
