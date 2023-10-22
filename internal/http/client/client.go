@@ -161,11 +161,7 @@ func (c *Client) sendMetricRetry(metric *model.Metrics) error {
 			return nil
 		},
 		retry.RetryIf(func(err error) bool {
-			if err != nil {
-				return true
-			}
-
-			return false
+			return err != nil
 		}),
 		retry.Attempts(4),
 		retry.Context(ctx),
