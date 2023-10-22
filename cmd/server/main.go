@@ -3,8 +3,7 @@ package main
 import (
 	"context"
 	"github.com/vorotislav/alert-service/internal/http"
-	"github.com/vorotislav/alert-service/internal/repository/localstorage"
-	"github.com/vorotislav/alert-service/internal/repository/postgres"
+	"github.com/vorotislav/alert-service/internal/repository"
 	"github.com/vorotislav/alert-service/internal/settings/server"
 	"github.com/vorotislav/alert-service/internal/signals"
 	"go.uber.org/zap"
@@ -43,19 +42,10 @@ func main() {
 		cancel()
 	})
 
-	var (
-		repo    http.Repository
-		repoErr error
-	)
+	repo, err := repository.NewRepository(ctx, logger, &sets)
 
-	if sets.DatabaseDSN == "" {
-		repo, repoErr = localstorage.NewMemStorage(ctx, logger, &sets)
-	} else {
-		repo, repoErr = postgres.NewStorage(ctx, logger, &sets)
-	}
-
-	if repoErr != nil {
-		logger.Error("cannot create repository", zap.Error(repoErr))
+	if err != nil {
+		logger.Error("cannot create repository", zap.Error(err))
 
 		return
 	}
