@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -107,7 +108,7 @@ func (s *Storage) Stop(_ context.Context) error {
 	return nil
 }
 
-func (s *Storage) retryQueryRow(ctx context.Context, query, param string, result any) error {
+func (s *Storage) retryQueryRow(ctx context.Context, query string, result any, args ...any) error {
 	delay := time.Second
 
 	var err error
@@ -115,7 +116,7 @@ func (s *Storage) retryQueryRow(ctx context.Context, query, param string, result
 	for i := 1; i <= maxRetryAttempt; i++ {
 		s.log.Debug("query row exec", zap.Int("attempt", i))
 
-		err = s.pool.QueryRow(ctx, query, param).Scan(result)
+		err = s.pool.QueryRow(ctx, query, args...).Scan(result)
 		if err == nil {
 			return nil
 		}
@@ -143,72 +144,39 @@ func (s *Storage) retryQueryRow(ctx context.Context, query, param string, result
 	return err
 }
 
-func (s *Storage) retryExec(ctx context.Context, query string, arguments ...any) error {
-	delay := time.Second
-
+func (s *Storage) UpdateMetric(ctx context.Context, metric model.Metrics) (model.Metrics, error) {
 	var err error
-
-	for i := 1; i < maxRetryAttempt; i++ {
-		s.log.Debug("exec", zap.Int("attempt", i))
-
-		_, err = s.pool.Exec(ctx, query, arguments...)
-		if err == nil {
-			return nil
+	switch metric.MType {
+	case model.MetricGauge:
+		{
+			var value float64
+			err = s.retryQueryRow(ctx,
+				`insert into metrics (name, type, value) values ($1, $2, $3) on conflict (name) do update 
+					set value = $3 returning value;`,
+				&value, metric.ID, metric.MType, metric.Value)
+			metric.Value = &value
 		}
-
-		s.log.Debug("cannot exec", zap.String("", err.Error()))
-
-		var pgErr *pgconn.PgError
-		if !errors.As(err, &pgErr) {
-			return err
-		}
-
-		if errors.As(err, &pgErr) && pgerrcode.IsConnectionException(pgErr.Code) {
-			if i == maxRetryAttempt {
-				break
-			}
-
-			newDelay := delay + (retryDelay * time.Second)
-
-			s.log.Debug("next attempt in", zap.String("sec", delay.String()))
-			time.Sleep(delay)
-			delay = newDelay
+	case model.MetricCounter:
+		{
+			var delta int64
+			err = s.retryQueryRow(ctx,
+				`insert into metrics (name, type, delta) values ($1, $2, $3) on conflict (name) do update 
+					set delta = $3 + (select delta from metrics where name = $1) returning delta;`,
+				&delta, metric.ID, metric.MType, *metric.Delta)
+			metric.Delta = &delta
 		}
 	}
-
-	return err
-}
-
-func (s *Storage) UpdateCounter(ctx context.Context, name string, value int64) (int64, error) {
-	delta, err := s.GetCounterValue(ctx, name)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			err := s.retryExec(ctx, "INSERT INTO metrics (name, type, delta) VALUES ($1, $2, $3)",
-				name, MetricTypeCounter, value)
-			if err != nil {
-				return 0, err
-			}
-
-			return value, nil
-		}
-
-		return 0, err
+		return model.Metrics{}, fmt.Errorf("update metric: %w", err)
 	}
 
-	delta += value
-
-	err = s.retryExec(ctx, "UPDATE metrics SET delta = $1 WHERE name = $2", delta, name)
-	if err != nil {
-		return 0, err
-	}
-
-	return delta, nil
+	return metric, nil
 }
 
 func (s *Storage) GetCounterValue(ctx context.Context, name string) (int64, error) {
 	var delta int64
 
-	err := s.retryQueryRow(ctx, "SELECT delta FROM metrics WHERE name = $1", name, &delta)
+	err := s.retryQueryRow(ctx, "SELECT delta FROM metrics WHERE name = $1", &delta, name)
 	if err != nil {
 		return 0, err
 	}
@@ -216,24 +184,36 @@ func (s *Storage) GetCounterValue(ctx context.Context, name string) (int64, erro
 	return delta, nil
 }
 
-func (s *Storage) AllCounterMetrics(ctx context.Context) ([]byte, error) {
-	rows, err := s.pool.Query(ctx, "SELECT name, type, delta FROM metrics WHERE type = $1", MetricTypeCounter)
+func (s *Storage) AllMetrics(ctx context.Context) ([]byte, error) {
+	rows, err := s.pool.Query(ctx, "SELECT name, type, delta, value FROM metrics")
 	if err != nil {
 		return nil, err
 	}
 
 	defer rows.Close()
 
-	counters := make([]model.Metrics, 0)
+	metrics := make([]model.Metrics, 0)
 
 	for rows.Next() {
 		m := model.Metrics{}
-		err = rows.Scan(&m.ID, &m.MType, m.Delta)
+		var (
+			delta sql.NullInt64
+			value sql.NullFloat64
+		)
+		err = rows.Scan(&m.ID, &m.MType, &delta, &value)
 		if err != nil {
 			return nil, err
 		}
 
-		counters = append(counters, m)
+		if delta.Valid {
+			m.Delta = &delta.Int64
+		}
+
+		if value.Valid {
+			m.Value = &value.Float64
+		}
+
+		metrics = append(metrics, m)
 	}
 
 	err = rows.Err()
@@ -241,78 +221,23 @@ func (s *Storage) AllCounterMetrics(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 
-	bytes, err := json.Marshal(counters)
+	bytes, err := json.Marshal(metrics)
 	if err != nil {
 		return nil, err
 	}
 
 	return bytes, nil
-}
-
-func (s *Storage) UpdateGauge(ctx context.Context, name string, value float64) (float64, error) {
-	_, err := s.GetGaugeValue(ctx, name)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			err = s.retryExec(ctx,
-				"INSERT INTO metrics (name, type, value) VALUES ($1, $2, $3)", name, MetricTypeGauge, value)
-			if err != nil {
-				return 0, err
-			}
-		}
-
-		return 0, err
-	}
-
-	err = s.retryExec(ctx, "UPDATE metrics SET value = $1 WHERE name = $2", value, name)
-	if err != nil {
-		return 0, err
-	}
-
-	return value, nil
 }
 
 func (s *Storage) GetGaugeValue(ctx context.Context, name string) (float64, error) {
 	var value float64
 
-	err := s.retryQueryRow(ctx, "SELECT value FROM metrics WHERE name = $1", name, &value)
+	err := s.retryQueryRow(ctx, "SELECT value FROM metrics WHERE name = $1", &value, name)
 	if err != nil {
 		return 0, err
 	}
 
 	return value, nil
-}
-
-func (s *Storage) AllGaugeMetrics(ctx context.Context) ([]byte, error) {
-	rows, err := s.pool.Query(ctx, "SELECT name, type, value FROM metrics WHERE type = $1", MetricTypeCounter)
-	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	gauges := make([]model.Metrics, 0)
-
-	for rows.Next() {
-		m := model.Metrics{}
-		err = rows.Scan(&m.ID, &m.MType, m.Value)
-		if err != nil {
-			return nil, err
-		}
-
-		gauges = append(gauges, m)
-	}
-
-	err = rows.Err()
-	if err != nil {
-		return nil, err
-	}
-
-	bytes, err := json.Marshal(gauges)
-	if err != nil {
-		return nil, err
-	}
-
-	return bytes, nil
 }
 
 func (s *Storage) UpdateMetrics(ctx context.Context, metrics []model.Metrics) error {
@@ -339,7 +264,8 @@ func (s *Storage) UpdateMetrics(ctx context.Context, metrics []model.Metrics) er
 
 func (s *Storage) updateCounters(ctx context.Context, metrics []model.Metrics) error {
 	for _, m := range metrics {
-		_, err := s.UpdateCounter(ctx, m.ID, *m.Delta)
+		m := m
+		_, err := s.UpdateMetric(ctx, m)
 		if err != nil {
 			return fmt.Errorf("cannot update counter metric: %w", err)
 		}
@@ -354,9 +280,12 @@ func (s *Storage) updateGauges(ctx context.Context, metrics []model.Metrics) err
 	qI := "INSERT INTO metrics (name, type, value) VALUES ($1, $2, $3)"
 
 	tx, err := s.pool.Begin(ctx)
+
 	if err != nil {
 		return fmt.Errorf("cannot start transaction for update gauge metrics: %w", err)
 	}
+
+	defer tx.Rollback(ctx)
 
 	for _, m := range metrics {
 		var value float64
@@ -365,8 +294,6 @@ func (s *Storage) updateGauges(ctx context.Context, metrics []model.Metrics) err
 			if errors.Is(err, pgx.ErrNoRows) {
 				_, err = tx.Exec(ctx, qI, m.ID, MetricTypeGauge, *m.Value)
 				if err != nil {
-					_ = tx.Rollback(ctx)
-
 					return fmt.Errorf("cannot insert gauge metric: %w", err)
 				}
 
@@ -376,16 +303,12 @@ func (s *Storage) updateGauges(ctx context.Context, metrics []model.Metrics) err
 
 		_, err = tx.Exec(ctx, qU, *m.Value, m.ID)
 		if err != nil {
-			_ = tx.Rollback(ctx)
-
 			return fmt.Errorf("cannot update gauge metric: %w", err)
 		}
 	}
 
 	err = tx.Commit(ctx)
 	if err != nil {
-		_ = tx.Rollback(ctx)
-
 		return fmt.Errorf("cannot commit gauge metrics: %w", err)
 	}
 
