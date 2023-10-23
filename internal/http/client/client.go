@@ -68,51 +68,6 @@ func (c *Client) SendMetrics(metrics map[string]*model.Metrics) error {
 	return nil
 }
 
-func (c *Client) sendMetrics(metrics []model.Metrics) error {
-	raw, err := json.Marshal(metrics)
-	if err != nil {
-		c.logger.Error("cannot metric marshal", zap.Error(err))
-
-		return fmt.Errorf("%w: %w", ErrSendMetrics, err)
-	}
-
-	compressRaw, err := utils.Compress(raw)
-	if err != nil {
-		c.logger.Error("cannot compress data", zap.Error(err))
-
-		return fmt.Errorf("%w: %w", ErrSendMetrics, err)
-	}
-
-	req, err := http.NewRequest(
-		http.MethodPost,
-		c.serverURL,
-		bytes.NewBuffer(compressRaw),
-	)
-
-	if err != nil {
-		c.logger.Error("cannot request prepare", zap.Error(err))
-
-		return fmt.Errorf("%w: %w", ErrSendMetrics, err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept-Encoding", "gzip")
-	req.Header.Set("Content-Encoding", "gzip")
-
-	resp, err := c.dc.Do(req)
-	if err != nil {
-		c.logger.Error("cannot send metrics", zap.Error(err))
-
-		return fmt.Errorf("%w: %w", ErrSendMetrics, err)
-	}
-
-	if resp != nil {
-		resp.Body.Close()
-	}
-
-	return nil
-}
-
 func (c *Client) sendMetricRetry(metric *model.Metrics) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
@@ -154,8 +109,8 @@ func (c *Client) sendMetricRetry(metric *model.Metrics) error {
 				defer resp.Body.Close()
 			}
 
-			if err != nil {
-				return err
+			if err != nil || resp.StatusCode >= http.StatusInternalServerError {
+				return fmt.Errorf("cannot do request: %s", err)
 			}
 
 			return nil
