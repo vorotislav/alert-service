@@ -19,6 +19,10 @@ func parseFlags(sets *agent.Settings) {
 		if sets.ReportInterval == 0 {
 			flag.IntVar(&sets.ReportInterval, "r", 10, "report interval, sec")
 		}
+
+		if sets.HashKey == "" {
+			flag.StringVar(&sets.HashKey, "k", "", "hash key")
+		}
 	}
 
 	flag.Parse()
