@@ -14,6 +14,11 @@ func Hash(key string) func(h http.Handler) http.Handler {
 		ch := func(w http.ResponseWriter, r *http.Request) {
 			if key != "" {
 				reqHash := r.Header.Get("HashSHA256")
+				if reqHash == "" {
+					h.ServeHTTP(w, r)
+
+					return
+				}
 
 				body, _ := io.ReadAll(r.Body)
 				r.Body.Close()
