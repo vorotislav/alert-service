@@ -41,6 +41,9 @@ func parseFlag(sets *server.Settings) {
 		if sets.DatabaseDSN == "" {
 			sets.DatabaseDSN = databaseDSN
 		}
+		if sets.HashKey == "" {
+			sets.HashKey = hashKey
+		}
 	}
 
 	// user=postgres password=postgres host=127.0.0.1 port=5432 dbname=alert_service pool_max_conns=10
