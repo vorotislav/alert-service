@@ -3,6 +3,7 @@ package client
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -96,6 +97,15 @@ func (c *Client) sendMetricRetry(metric *model.Metrics) error {
 		c.logger.Error("cannot request prepare", zap.Error(err))
 
 		return fmt.Errorf("%w: %w", ErrSendMetrics, err)
+	}
+
+	if c.set.HashKey != "" {
+		hash, err := utils.GetHash(raw, []byte(c.set.HashKey))
+		if err != nil {
+			c.logger.Error("cannot get hash of metric", zap.Error(err))
+		}
+
+		req.Header.Set("HashSHA256", base64.StdEncoding.EncodeToString(hash))
 	}
 
 	req.Header.Set("Content-Type", "application/json")
