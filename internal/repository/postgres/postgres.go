@@ -113,7 +113,10 @@ func (s *Storage) retryQueryRow(ctx context.Context, query string, result any, a
 	var err error
 
 	for i := 1; i <= maxRetryAttempt; i++ {
-		s.log.Debug("query row exec", zap.Int("attempt", i))
+		s.log.Debug("query row exec",
+			zap.String("query", query),
+			zap.Any("arg0", args[0]),
+			zap.Int("attempt", i))
 
 		err = s.pool.QueryRow(ctx, query, args...).Scan(result)
 		if err == nil {
