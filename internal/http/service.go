@@ -30,7 +30,7 @@ func NewService(
 	r.Use(middlewares.New(log))
 	r.Use(middlewares.CompressMiddleware)
 	if set.HashKey != "" {
-		r.Use(middlewares.Hash(set.HashKey))
+		r.Use(middlewares.Hash(log, set.HashKey))
 	}
 
 	handler := handlers.NewHandler(log, repo)
