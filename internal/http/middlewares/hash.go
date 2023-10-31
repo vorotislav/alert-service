@@ -45,7 +45,7 @@ func Hash(log *zap.Logger, key string) func(h http.Handler) http.Handler {
 				}
 
 				if !equal {
-					log.Info(fmt.Sprintf("hash not equal"))
+					log.Info("hash not equal")
 
 					http.Error(w, "hash not equal", http.StatusBadRequest)
 
