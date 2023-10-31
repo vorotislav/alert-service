@@ -60,13 +60,46 @@ func (c *Client) SendMetrics(metrics map[string]*model.Metrics) error {
 	//	return fmt.Errorf("cannot send metrics: %w", err)
 	//}
 
-	for _, m := range metrics {
+	ms := c.convertMetricsToSlice(metrics)
+
+	jobs := make(chan *model.Metrics, c.set.RateLimit)
+	results := make(chan error, c.set.RateLimit)
+
+	for w := 1; w <= c.set.RateLimit; w++ {
+		go c.sendWorker(w, jobs, results)
+	}
+
+	for _, m := range ms {
 		m := m
-		if err := c.sendMetricRetry(m); err != nil {
-			return err
+		jobs <- m
+	}
+
+	close(jobs)
+
+	return nil
+}
+
+func (c *Client) sendWorker(id int, jobs <-chan *model.Metrics, results chan<- error) {
+	for j := range jobs {
+		c.logger.Debug(fmt.Sprintf("worker %d started job: %s", id, j.ID))
+		err := c.sendMetricRetry(j)
+		if err != nil {
+			c.logger.Debug(fmt.Sprintf("worker %d failed job: %s", id, j.ID))
+			results <- err
 		}
 	}
-	return nil
+
+	c.logger.Debug(fmt.Sprintf("worker %d done", id))
+}
+
+func (c *Client) convertMetricsToSlice(metrics map[string]*model.Metrics) []*model.Metrics {
+	m := make([]*model.Metrics, 0, len(metrics))
+
+	for _, v := range metrics {
+		m = append(m, v)
+	}
+
+	return m
 }
 
 func (c *Client) sendMetricRetry(metric *model.Metrics) error {

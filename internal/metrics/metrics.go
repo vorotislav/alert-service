@@ -2,6 +2,9 @@ package metrics
 
 import (
 	"context"
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
+	"golang.org/x/sync/errgroup"
 	"math/rand"
 	"runtime"
 	"time"
@@ -18,35 +21,38 @@ const (
 )
 
 const (
-	MetricAlloc         = "Alloc"
-	MetricBuckHashSys   = "BuckHashSys"
-	MetricFrees         = "Frees"
-	MetricGCSys         = "GCSys"
-	MetricHeapAlloc     = "HeapAlloc"
-	MetricHeapIdle      = "HeapIdle"
-	MetricHeapInuse     = "HeapInuse"
-	MetricHeapObjects   = "HeapObjects"
-	MetricHeapReleased  = "HeapReleased"
-	MetricHeapSys       = "HeapSys"
-	MetricLastGC        = "LastGC"
-	MetricLookups       = "Lookups"
-	MetricMCacheInuse   = "MCacheInuse"
-	MetricMCacheSys     = "MCacheSys"
-	MetricMSpanInuse    = "MSpanInuse"
-	MetricMSpanSys      = "MSpanSys"
-	MetricMallocs       = "Mallocs"
-	MetricNextGC        = "NextGC"
-	MetricNumForcedGC   = "NumForcedGC"
-	MetricNumGC         = "NumGC"
-	MetricOtherSys      = "OtherSys"
-	MetricPauseTotalNs  = "PauseTotalNs"
-	MetricStackInuse    = "StackInuse"
-	MetricStackSys      = "StackSys"
-	MetricSys           = "Sys"
-	MetricTotalAlloc    = "TotalAlloc"
-	MetricPollCount     = "PollCount"
-	MetricGCCPUFraction = "GCCPUFraction"
-	MetricRandomValue   = "RandomValue"
+	MetricAlloc           = "Alloc"
+	MetricBuckHashSys     = "BuckHashSys"
+	MetricFrees           = "Frees"
+	MetricGCSys           = "GCSys"
+	MetricHeapAlloc       = "HeapAlloc"
+	MetricHeapIdle        = "HeapIdle"
+	MetricHeapInuse       = "HeapInuse"
+	MetricHeapObjects     = "HeapObjects"
+	MetricHeapReleased    = "HeapReleased"
+	MetricHeapSys         = "HeapSys"
+	MetricLastGC          = "LastGC"
+	MetricLookups         = "Lookups"
+	MetricMCacheInuse     = "MCacheInuse"
+	MetricMCacheSys       = "MCacheSys"
+	MetricMSpanInuse      = "MSpanInuse"
+	MetricMSpanSys        = "MSpanSys"
+	MetricMallocs         = "Mallocs"
+	MetricNextGC          = "NextGC"
+	MetricNumForcedGC     = "NumForcedGC"
+	MetricNumGC           = "NumGC"
+	MetricOtherSys        = "OtherSys"
+	MetricPauseTotalNs    = "PauseTotalNs"
+	MetricStackInuse      = "StackInuse"
+	MetricStackSys        = "StackSys"
+	MetricSys             = "Sys"
+	MetricTotalAlloc      = "TotalAlloc"
+	MetricPollCount       = "PollCount"
+	MetricGCCPUFraction   = "GCCPUFraction"
+	MetricRandomValue     = "RandomValue"
+	MetricTotalMemory     = "TotalMemory"
+	MetricFreeMemory      = "FreeMemory"
+	MetricCPUutilization1 = "CPUutilization1"
 )
 
 type Client interface {
@@ -89,11 +95,18 @@ func (w *Worker) startWorker(ctx context.Context) {
 	pollTicker := time.NewTicker(time.Duration(w.set.PollInterval) * time.Second)
 	reportTicker := time.NewTicker(time.Duration(w.set.ReportInterval) * time.Second)
 
+	eg := &errgroup.Group{}
 	for {
 		select {
 		case <-pollTicker.C:
 			w.pollCount++
 			w.readMetrics()
+
+			eg.Go(w.readAddMetrics)
+			if err := eg.Wait(); err != nil {
+				w.log.Error("read additional metrics", zap.Error(err))
+			}
+
 			w.log.Debug("polling metrics", zap.Int("iteration", w.pollCount))
 		case <-reportTicker.C:
 			w.log.Debug("report metrics")
@@ -156,6 +169,39 @@ func (w *Worker) initMetrics() {
 	w.metrics[MetricPollCount] = getTemplateMetric(MetricPollCount, MetricTypeCounter)
 	w.metrics[MetricGCCPUFraction] = getTemplateMetric(MetricGCCPUFraction, MetricTypeGauge)
 	w.metrics[MetricRandomValue] = getTemplateMetric(MetricRandomValue, MetricTypeGauge)
+	w.metrics[MetricTotalMemory] = getTemplateMetric(MetricTotalMemory, MetricTypeGauge)
+	w.metrics[MetricFreeMemory] = getTemplateMetric(MetricFreeMemory, MetricTypeGauge)
+	w.metrics[MetricCPUutilization1] = getTemplateMetric(MetricCPUutilization1, MetricTypeGauge)
+}
+
+func (w *Worker) readAddMetrics() error {
+	vm, err := mem.VirtualMemory()
+	if err != nil {
+		w.log.Error("get virtual memory", zap.Error(err))
+
+		return err
+	}
+
+	percent, err := cpu.Percent(0, true)
+	if err != nil {
+		w.log.Error("get cpu percent", zap.Error(err))
+
+		return err
+	}
+
+	tm := w.metrics[MetricTotalMemory]
+	*tm.Value = float64(vm.Total)
+	w.metrics[MetricTotalMemory] = tm
+
+	fm := w.metrics[MetricFreeMemory]
+	*fm.Value = float64(vm.Free)
+	w.metrics[MetricFreeMemory] = fm
+
+	cu := w.metrics[MetricCPUutilization1]
+	*cu.Value = percent[0]
+	w.metrics[MetricCPUutilization1] = cu
+
+	return nil
 }
 
 func (w *Worker) readMetrics() {
