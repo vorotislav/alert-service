@@ -29,8 +29,12 @@ func main() {
 	defer logger.Sync()
 
 	logger.Debug("Server starting...")
-	logger.Debug("Restore flag: ", zap.Bool("flag", *sets.Restore))
-	logger.Debug("File path: ", zap.String("path", sets.FileStoragePath))
+	logger.Debug("Current settings",
+		zap.String("ip address", sets.Address),
+		zap.Bool("restore flag", *sets.Restore),
+		zap.String("file path", sets.FileStoragePath),
+		zap.String("database dsn", sets.DatabaseDSN),
+		zap.String("hash key", sets.HashKey))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	oss := signals.NewOSSignals(ctx)
