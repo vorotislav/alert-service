@@ -20,6 +20,9 @@ func parseFlag(sets *server.Settings) {
 	var storagePath string
 	flag.StringVar(&storagePath, "f", "/tmp/metrics-db.json", "file localstorage path")
 
+	var hashKey string
+	flag.StringVar(&hashKey, "k", "", "hash key")
+
 	flag.Parse()
 
 	if err := env.Parse(sets); err == nil {
@@ -37,6 +40,9 @@ func parseFlag(sets *server.Settings) {
 		}
 		if sets.DatabaseDSN == "" {
 			sets.DatabaseDSN = databaseDSN
+		}
+		if sets.HashKey == "" {
+			sets.HashKey = hashKey
 		}
 	}
 

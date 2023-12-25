@@ -31,6 +31,12 @@ func main() {
 	defer logger.Sync()
 
 	logger.Debug("Agent starting...")
+	logger.Debug("Current settings",
+		zap.String("server address", sets.ServerAddress),
+		zap.Int("report interval", sets.ReportInterval),
+		zap.Int("poll interval", sets.PollInterval),
+		zap.Int("rate limit", sets.RateLimit),
+		zap.String("hash key", sets.HashKey))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	oss := signals.NewOSSignals(ctx)

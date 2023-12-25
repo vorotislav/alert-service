@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jackc/pgerrcode"
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/vorotislav/alert-service/internal/model"
 	"time"
@@ -114,7 +113,10 @@ func (s *Storage) retryQueryRow(ctx context.Context, query string, result any, a
 	var err error
 
 	for i := 1; i <= maxRetryAttempt; i++ {
-		s.log.Debug("query row exec", zap.Int("attempt", i))
+		s.log.Debug("query row exec",
+			zap.String("query", query),
+			zap.Any("arg0", args[0]),
+			zap.Int("attempt", i))
 
 		err = s.pool.QueryRow(ctx, query, args...).Scan(result)
 		if err == nil {
@@ -275,9 +277,8 @@ func (s *Storage) updateCounters(ctx context.Context, metrics []model.Metrics) e
 }
 
 func (s *Storage) updateGauges(ctx context.Context, metrics []model.Metrics) error {
-	qU := "UPDATE metrics SET value = $1 WHERE name = $2"
-	qS := "SELECT value FROM metrics WHERE name = $1"
-	qI := "INSERT INTO metrics (name, type, value) VALUES ($1, $2, $3)"
+	qI := `INSERT INTO metrics (name, type, value) VALUES ($1, $2, $3) on conflict (name) do update 
+    set value = $3`
 
 	tx, err := s.pool.Begin(ctx)
 
@@ -288,20 +289,7 @@ func (s *Storage) updateGauges(ctx context.Context, metrics []model.Metrics) err
 	defer tx.Rollback(ctx)
 
 	for _, m := range metrics {
-		var value float64
-		err := tx.QueryRow(ctx, qS, m.ID).Scan(&value)
-		if err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
-				_, err = tx.Exec(ctx, qI, m.ID, MetricTypeGauge, *m.Value)
-				if err != nil {
-					return fmt.Errorf("cannot insert gauge metric: %w", err)
-				}
-
-				continue
-			}
-		}
-
-		_, err = tx.Exec(ctx, qU, *m.Value, m.ID)
+		_, err := tx.Exec(ctx, qI, m.ID, m.MType, m.Value)
 		if err != nil {
 			return fmt.Errorf("cannot update gauge metric: %w", err)
 		}

@@ -19,6 +19,14 @@ func parseFlags(sets *agent.Settings) {
 		if sets.ReportInterval == 0 {
 			flag.IntVar(&sets.ReportInterval, "r", 10, "report interval, sec")
 		}
+
+		if sets.HashKey == "" {
+			flag.StringVar(&sets.HashKey, "k", "", "hash key")
+		}
+
+		if sets.RateLimit == 0 {
+			flag.IntVar(&sets.RateLimit, "l", 3, "rate limit of worker pool")
+		}
 	}
 
 	flag.Parse()
