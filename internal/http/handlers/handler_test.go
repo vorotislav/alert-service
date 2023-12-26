@@ -2,8 +2,11 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
+	"github.com/vorotislav/alert-service/internal/repository"
+	srv "github.com/vorotislav/alert-service/internal/settings/server"
 	"github.com/vorotislav/alert-service/internal/utils"
 	"io"
 	"net/http"
@@ -625,4 +628,152 @@ func TestNewHandler(t *testing.T) {
 
 	h := NewHandler(log, m)
 	require.NotNil(t, h)
+}
+
+func BenchmarkHandler_Ping(b *testing.B) {
+	interval := 0
+	restore := false
+	log, _ := zap.NewDevelopment()
+	rep, _ := repository.NewRepository(context.Background(), log, &srv.Settings{
+		Address:         "",
+		StoreInterval:   &interval,
+		FileStoragePath: "",
+		Restore:         &restore,
+		DatabaseDSN:     "",
+		HashKey:         "",
+	})
+
+	h := &Handler{
+		repo: rep,
+	}
+
+	r := chi.NewRouter()
+
+	r.Route("/ping", func(r chi.Router) {
+		r.Get("/", h.Ping)
+	})
+
+	server := httptest.NewServer(r)
+	defer server.Close()
+
+	for i := 0; i < b.N; i++ {
+		request, _ := http.NewRequest(http.MethodGet, server.URL+"/ping", http.NoBody)
+
+		res, _ := server.Client().Do(request)
+		defer res.Body.Close()
+	}
+}
+
+func BenchmarkHandler_Updates(b *testing.B) {
+	interval := 0
+	restore := false
+	body := []byte(`[{"id":"some counter", "mtype":"counter", "delta":1},{"id":"some gauge", "type":"gauge", "value":1.1}]`)
+	log, _ := zap.NewDevelopment()
+	rep, _ := repository.NewRepository(context.Background(), log, &srv.Settings{
+		Address:         "",
+		StoreInterval:   &interval,
+		FileStoragePath: "",
+		Restore:         &restore,
+		DatabaseDSN:     "",
+		HashKey:         "",
+	})
+
+	h := &Handler{
+		repo: rep,
+		log:  log,
+	}
+
+	r := chi.NewRouter()
+
+	r.Route("/updates", func(r chi.Router) {
+		r.Post("/", h.Updates)
+	})
+
+	server := httptest.NewServer(r)
+	defer server.Close()
+
+	for i := 0; i < b.N; i++ {
+		request, _ := http.NewRequest(http.MethodPost, server.URL+"/updates", bytes.NewBuffer(body))
+		request.Header.Set("Content-Type", "application/json")
+
+		res, _ := server.Client().Do(request)
+		defer res.Body.Close()
+	}
+}
+
+func BenchmarkHandler_Update(b *testing.B) {
+	interval := 0
+	restore := false
+	log, _ := zap.NewDevelopment()
+	rep, _ := repository.NewRepository(context.Background(), log, &srv.Settings{
+		Address:         "",
+		StoreInterval:   &interval,
+		FileStoragePath: "",
+		Restore:         &restore,
+		DatabaseDSN:     "",
+		HashKey:         "",
+	})
+
+	h := &Handler{
+		repo: rep,
+		log:  log,
+	}
+
+	r := chi.NewRouter()
+
+	r.Route("/update", func(r chi.Router) {
+		r.Route("/{metricType}", func(r chi.Router) {
+			r.Route("/{metricName}", func(r chi.Router) {
+				r.Post("/{metricValue}", h.Update)
+			})
+		})
+	})
+
+	server := httptest.NewServer(r)
+	defer server.Close()
+
+	for i := 0; i < b.N; i++ {
+		request, _ := http.NewRequest(http.MethodPost, server.URL+"/update/counter/1", http.NoBody)
+		request.Header.Set("Content-Type", "application/json")
+
+		res, _ := server.Client().Do(request)
+		defer res.Body.Close()
+	}
+}
+
+func BenchmarkHandler_UpdateJSON(b *testing.B) {
+	interval := 0
+	restore := false
+	body := []byte(`{"id":"some counter", "type":"counter", "delta":1}`)
+	log, _ := zap.NewDevelopment()
+	rep, _ := repository.NewRepository(context.Background(), log, &srv.Settings{
+		Address:         "",
+		StoreInterval:   &interval,
+		FileStoragePath: "",
+		Restore:         &restore,
+		DatabaseDSN:     "",
+		HashKey:         "",
+	})
+
+	h := &Handler{
+		repo: rep,
+		log:  log,
+	}
+
+	r := chi.NewRouter()
+
+	r.Route("/updates", func(r chi.Router) {
+		r.Post("/", h.Updates)
+	})
+
+	server := httptest.NewServer(r)
+	defer server.Close()
+
+	for i := 0; i < b.N; i++ {
+		request, _ := http.NewRequest(http.MethodPost, server.URL+"/update", bytes.NewBuffer(body))
+		request.Header.Set("Content-Type", "application/json")
+
+		res, _ := server.Client().Do(request)
+		defer res.Body.Close()
+	}
 }
