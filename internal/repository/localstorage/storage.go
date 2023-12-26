@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/vorotislav/alert-service/internal/model"
-	"github.com/vorotislav/alert-service/internal/settings/server"
-	"go.uber.org/zap"
 	"os"
 	"time"
+
+	"github.com/vorotislav/alert-service/internal/model"
+	"github.com/vorotislav/alert-service/internal/settings/server"
+
+	"go.uber.org/zap"
 )
 
 var (

@@ -7,15 +7,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/avast/retry-go"
-	"github.com/vorotislav/alert-service/internal/utils"
 	"io"
 	"net/http"
 	"time"
 
 	"github.com/vorotislav/alert-service/internal/model"
 	"github.com/vorotislav/alert-service/internal/settings/agent"
+	"github.com/vorotislav/alert-service/internal/utils"
 
+	"github.com/avast/retry-go"
 	"go.uber.org/zap"
 )
 

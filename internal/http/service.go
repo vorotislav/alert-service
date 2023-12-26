@@ -2,15 +2,16 @@ package http
 
 import (
 	"context"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/vorotislav/alert-service/internal/http/handlers"
-	"github.com/vorotislav/alert-service/internal/repository"
-	"github.com/vorotislav/alert-service/internal/settings/server"
 	"net/http"
 	"net/http/pprof"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/vorotislav/alert-service/internal/http/handlers"
 	"github.com/vorotislav/alert-service/internal/http/middlewares"
+	"github.com/vorotislav/alert-service/internal/repository"
+	"github.com/vorotislav/alert-service/internal/settings/server"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 )
 

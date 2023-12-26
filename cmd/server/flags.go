@@ -2,7 +2,9 @@ package main
 
 import (
 	"flag"
+
 	"github.com/caarlos0/env/v6"
+
 	"github.com/vorotislav/alert-service/internal/settings/server"
 )
 
