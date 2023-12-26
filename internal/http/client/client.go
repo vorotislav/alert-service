@@ -1,3 +1,4 @@
+// Пакет client скрывает работу с http протоколом предоставляя один метод для отправки метрик.
 package client
 
 import (
@@ -19,6 +20,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// ErrSendMetrics ошибка, в случае неудачи отправки.
 var (
 	ErrSendMetrics = errors.New("cannot send metrics")
 )
@@ -28,6 +30,7 @@ const (
 	retryDelay      = 2
 )
 
+// Client основная сущность для отправки метрик. Содержит в себе http.Client, логгер, настройки и URL сервера.
 type Client struct {
 	dc        *http.Client
 	logger    *zap.Logger
@@ -35,6 +38,7 @@ type Client struct {
 	serverURL string
 }
 
+// NewClient конструктор для Client.
 func NewClient(logger *zap.Logger, set *agent.Settings) *Client {
 	c := &Client{
 		dc: &http.Client{
@@ -48,6 +52,7 @@ func NewClient(logger *zap.Logger, set *agent.Settings) *Client {
 	return c
 }
 
+// SendMetrics метод отправки метрик на сервер. Принимает карту с метриками и возвращает ошибку.
 func (c *Client) SendMetrics(metrics map[string]*model.Metrics) error {
 
 	//newMetrics := make([]model.Metrics, 0, len(metrics))
