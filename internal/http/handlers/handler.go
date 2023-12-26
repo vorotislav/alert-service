@@ -4,13 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/go-chi/chi/v5"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/vorotislav/alert-service/internal/model"
 
+	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
 

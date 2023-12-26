@@ -2,10 +2,12 @@ package repository
 
 import (
 	"context"
+
 	"github.com/vorotislav/alert-service/internal/model"
 	"github.com/vorotislav/alert-service/internal/repository/localstorage"
 	"github.com/vorotislav/alert-service/internal/repository/postgres"
 	"github.com/vorotislav/alert-service/internal/settings/server"
+
 	"go.uber.org/zap"
 )
 

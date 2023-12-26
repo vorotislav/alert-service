@@ -2,13 +2,16 @@ package http
 
 import (
 	"context"
+	"net/http"
+	"net/http/pprof"
+
 	"github.com/vorotislav/alert-service/internal/http/handlers"
+	"github.com/vorotislav/alert-service/internal/http/middlewares"
 	"github.com/vorotislav/alert-service/internal/repository"
 	"github.com/vorotislav/alert-service/internal/settings/server"
-	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/vorotislav/alert-service/internal/http/middlewares"
+	"github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 )
 
@@ -28,7 +31,8 @@ func NewService(
 	r := chi.NewRouter()
 
 	r.Use(middlewares.New(log))
-	r.Use(middlewares.CompressMiddleware)
+	//r.Use(middlewares.CompressMiddleware)
+	r.Use(middleware.Compress(9, "text/html", "text/plain", "application/json"))
 	if set.HashKey != "" {
 		r.Use(middlewares.Hash(log, set.HashKey))
 	}
@@ -61,6 +65,7 @@ func NewService(
 	})
 
 	r.Get("/", handler.AllValue)
+	r.HandleFunc("/debug/pprof/heap", pprof.Index)
 
 	hs := &http.Server{
 		Addr:    set.Address,

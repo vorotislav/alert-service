@@ -2,9 +2,6 @@ package metrics
 
 import (
 	"context"
-	"github.com/shirou/gopsutil/v3/cpu"
-	"github.com/shirou/gopsutil/v3/mem"
-	"golang.org/x/sync/errgroup"
 	"math/rand"
 	"runtime"
 	"time"
@@ -12,7 +9,10 @@ import (
 	"github.com/vorotislav/alert-service/internal/model"
 	"github.com/vorotislav/alert-service/internal/settings/agent"
 
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
