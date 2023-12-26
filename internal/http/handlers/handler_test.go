@@ -659,8 +659,7 @@ func BenchmarkHandler_Ping(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		request, _ := http.NewRequest(http.MethodGet, server.URL+"/ping", http.NoBody)
 
-		res, _ := server.Client().Do(request)
-		defer res.Body.Close()
+		_, _ = server.Client().Do(request)
 	}
 }
 
@@ -696,8 +695,7 @@ func BenchmarkHandler_Updates(b *testing.B) {
 		request, _ := http.NewRequest(http.MethodPost, server.URL+"/updates", bytes.NewBuffer(body))
 		request.Header.Set("Content-Type", "application/json")
 
-		res, _ := server.Client().Do(request)
-		defer res.Body.Close()
+		_, _ = server.Client().Do(request)
 	}
 }
 
@@ -736,8 +734,7 @@ func BenchmarkHandler_Update(b *testing.B) {
 		request, _ := http.NewRequest(http.MethodPost, server.URL+"/update/counter/1", http.NoBody)
 		request.Header.Set("Content-Type", "application/json")
 
-		res, _ := server.Client().Do(request)
-		defer res.Body.Close()
+		_, _ = server.Client().Do(request)
 	}
 }
 
@@ -773,7 +770,6 @@ func BenchmarkHandler_UpdateJSON(b *testing.B) {
 		request, _ := http.NewRequest(http.MethodPost, server.URL+"/update", bytes.NewBuffer(body))
 		request.Header.Set("Content-Type", "application/json")
 
-		res, _ := server.Client().Do(request)
-		defer res.Body.Close()
+		_, _ = server.Client().Do(request)
 	}
 }
