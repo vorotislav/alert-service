@@ -1,3 +1,4 @@
+// Пакет postgres представляет реализацию интерфейса Repository для работы с PostgreSQL в качестве БД.
 package postgres
 
 import (
@@ -25,6 +26,7 @@ import (
 //go:embed migrations/*
 var migrations embed.FS
 
+// Ошибки, возможные при работе с хранилищем.
 var (
 	ErrSourceDriver   = errors.New("cannot create source driver")
 	ErrSourceInstance = errors.New("cannot create migrate")
@@ -37,16 +39,13 @@ const (
 	retryDelay      = 2
 )
 
-const (
-	MetricTypeCounter = "counter"
-	MetricTypeGauge   = "gauge"
-)
-
+// Storage сущность для работы с хранилищем. Хранит в себе пул соединений для PostgreSQL и логгер.
 type Storage struct {
 	pool *pgxpool.Pool
 	log  *zap.Logger
 }
 
+// NewStorage конструктор для Storage. После успешного создания пула соединений выполняет миграцию объектов БД.
 func NewStorage(ctx context.Context, log *zap.Logger, set *server.Settings) (*Storage, error) {
 	log.Debug(fmt.Sprintf("Database DSN: %s", set.DatabaseDSN))
 	pool, err := pgxpool.New(ctx, set.DatabaseDSN)
@@ -97,10 +96,12 @@ func (s *Storage) migrate() error {
 	return nil
 }
 
+// Ping возвращает доступность БД.
 func (s *Storage) Ping(ctx context.Context) error {
 	return s.pool.Ping(ctx)
 }
 
+// Stop закрывает пул соединений.
 func (s *Storage) Stop(_ context.Context) error {
 	s.pool.Close()
 
@@ -146,6 +147,7 @@ func (s *Storage) retryQueryRow(ctx context.Context, query string, result any, a
 	return err
 }
 
+// UpdateMetric обновляет значение метрики в БД в зависимости от типа метрики.
 func (s *Storage) UpdateMetric(ctx context.Context, metric model.Metrics) (model.Metrics, error) {
 	var err error
 	switch metric.MType {
@@ -175,6 +177,7 @@ func (s *Storage) UpdateMetric(ctx context.Context, metric model.Metrics) (model
 	return metric, nil
 }
 
+// GetCounterValue возвращает метрику по имени с типом counter.
 func (s *Storage) GetCounterValue(ctx context.Context, name string) (int64, error) {
 	var delta int64
 
@@ -186,6 +189,7 @@ func (s *Storage) GetCounterValue(ctx context.Context, name string) (int64, erro
 	return delta, nil
 }
 
+// AllMetrics возвращает все метрики с актуальными значениями.
 func (s *Storage) AllMetrics(ctx context.Context) ([]byte, error) {
 	rows, err := s.pool.Query(ctx, "SELECT name, type, delta, value FROM metrics")
 	if err != nil {
@@ -231,6 +235,7 @@ func (s *Storage) AllMetrics(ctx context.Context) ([]byte, error) {
 	return bytes, nil
 }
 
+// GetGaugeValue возвращает метрику по имени с типом gauge.
 func (s *Storage) GetGaugeValue(ctx context.Context, name string) (float64, error) {
 	var value float64
 
@@ -242,11 +247,12 @@ func (s *Storage) GetGaugeValue(ctx context.Context, name string) (float64, erro
 	return value, nil
 }
 
+// UpdateMetrics обновляет сразу массив метрик.
 func (s *Storage) UpdateMetrics(ctx context.Context, metrics []model.Metrics) error {
 	counters := make([]model.Metrics, 0)
 	gauges := make([]model.Metrics, 0)
 	for _, m := range metrics {
-		if m.MType == MetricTypeCounter {
+		if m.MType == model.MetricCounter {
 			counters = append(counters, m)
 		} else {
 			gauges = append(gauges, m)

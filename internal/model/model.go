@@ -1,5 +1,6 @@
 package model
 
+// Metrics модель для одной метрики.
 type Metrics struct {
 	ID    string   `json:"id"`
 	MType string   `json:"type"`

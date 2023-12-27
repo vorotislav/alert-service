@@ -1,3 +1,4 @@
+// Пакет handlers предоставляет http-обработчика для обслуживания запросов на сервер.
 package handlers
 
 import (
@@ -14,6 +15,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// Типы метрик.
 const (
 	MetricCounter = "counter"
 	MetricGauge   = "gauge"
@@ -23,6 +25,7 @@ const (
 	queryRepoTimeout = time.Second + 2
 )
 
+// Repository интерфейс хранилища, который необходим для работы с метриками.
 type Repository interface {
 	UpdateMetric(ctx context.Context, metric model.Metrics) (model.Metrics, error)
 	GetCounterValue(ctx context.Context, name string) (int64, error)
@@ -32,11 +35,13 @@ type Repository interface {
 	UpdateMetrics(ctx context.Context, metrics []model.Metrics) error
 }
 
+// Handler обработчик. Хранит логгер и указатель на репозиторий.
 type Handler struct {
 	log  *zap.Logger
 	repo Repository
 }
 
+// NewHandler конструктор для Handler.
 func NewHandler(log *zap.Logger, r Repository) *Handler {
 	return &Handler{
 		log:  log,
@@ -55,6 +60,7 @@ func setContentType(w http.ResponseWriter, contentType string) {
 	}
 }
 
+// Ping функция-обработчик для /ping. Возвращает доступность репозитория.
 func (h *Handler) Ping(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), queryRepoTimeout)
 	defer cancel()
@@ -68,6 +74,7 @@ func (h *Handler) Ping(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// Update функция-обработчик для /update/counter/someMetric/1, где в пути указан тип метрики, название метрики и новое значение.
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	metricType := chi.URLParam(r, "metricType")
 
@@ -153,6 +160,7 @@ func (h *Handler) updateGauge(w http.ResponseWriter, r *http.Request) {
 	h.logInfo("Success update gauge metrics", http.StatusOK, 0)
 }
 
+// UpdateJSON функция-обработчик для /update. Endpoint принимает в качестве тела запроса json с описанием метрики и нового значения. Только одна метрика.
 func (h *Handler) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 	if contentType := r.Header.Get("Content-Type"); contentType != "application/json" {
 		h.logInfo(fmt.Sprintf("Failed to update metrics: unknown ContentType %s", contentType),
@@ -239,6 +247,7 @@ func (h *Handler) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 	h.logInfo("Success update metrics", http.StatusOK, size)
 }
 
+// Updates функция-обработчик для /updates. Тело состоит из массива json-объектов, с описанием метрики и нового значения.
 func (h *Handler) Updates(w http.ResponseWriter, r *http.Request) {
 	if contentType := r.Header.Get("Content-Type"); contentType != "application/json" {
 		h.logInfo(fmt.Sprintf("Failed to update metrics: unknown Content-Type: %s", contentType),
@@ -282,6 +291,7 @@ func (h *Handler) Updates(w http.ResponseWriter, r *http.Request) {
 	h.logInfo("Success update metrics", http.StatusOK, size)
 }
 
+// Value функция-обработчик для /values/counter/SomeMetric. В запросе указывается тип и название метрики и возвращается последнее значение метрики.
 func (h *Handler) Value(w http.ResponseWriter, r *http.Request) {
 	metricType := chi.URLParam(r, "metricType")
 	metricName := chi.URLParam(r, "metricName")
@@ -336,6 +346,7 @@ func (h *Handler) Value(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+// ValueJSON функция-обработчик для /value. Через POST запрос передаётся json-объект с указанием метрики, значение которой необходимо вернуть.
 func (h *Handler) ValueJSON(w http.ResponseWriter, r *http.Request) {
 	if contentType := r.Header.Get("Content-Type"); contentType != "application/json" {
 		h.logInfo(fmt.Sprintf("Failed to get metrics: unknown Content-Type: %s", contentType),
@@ -415,6 +426,7 @@ func (h *Handler) ValueJSON(w http.ResponseWriter, r *http.Request) {
 	h.logInfo("Success get metrics", http.StatusOK, size)
 }
 
+// AllValue функция-обработчик для /. Возвращает все метрики в текстовом виде.
 func (h *Handler) AllValue(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), queryRepoTimeout)
 	defer cancel()
