@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/base64"
 	"fmt"
-	"github.com/vorotislav/alert-service/internal/utils"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
+
+	"github.com/vorotislav/alert-service/internal/utils"
+
+	"go.uber.org/zap"
 )
 
 func Hash(log *zap.Logger, key string) func(h http.Handler) http.Handler {

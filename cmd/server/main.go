@@ -2,14 +2,16 @@ package main
 
 import (
 	"context"
+	"log"
+	"os"
+	"time"
+
+	"go.uber.org/zap"
+
 	"github.com/vorotislav/alert-service/internal/http"
 	"github.com/vorotislav/alert-service/internal/repository"
 	"github.com/vorotislav/alert-service/internal/settings/server"
 	"github.com/vorotislav/alert-service/internal/signals"
-	"go.uber.org/zap"
-	"log"
-	"os"
-	"time"
 )
 
 const serviceShutdownTimeout = 1 * time.Second

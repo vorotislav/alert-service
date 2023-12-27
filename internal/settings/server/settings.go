@@ -1,5 +1,6 @@
 package server
 
+// Settings представляет настройки для сервера.
 type Settings struct {
 	Address         string `env:"ADDRESS"`
 	StoreInterval   *int   `env:"STORE_INTERVAL"`
