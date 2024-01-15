@@ -1,10 +1,8 @@
+// Пакет metrics выполняет основную работу агента: сбор метрик по определённому таймауту и отправку на сервер через клиент.
 package metrics
 
 import (
 	"context"
-	"github.com/shirou/gopsutil/v3/cpu"
-	"github.com/shirou/gopsutil/v3/mem"
-	"golang.org/x/sync/errgroup"
 	"math/rand"
 	"runtime"
 	"time"
@@ -12,14 +10,21 @@ import (
 	"github.com/vorotislav/alert-service/internal/model"
 	"github.com/vorotislav/alert-service/internal/settings/agent"
 
+	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/shirou/gopsutil/v3/mem"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 )
 
+// Доступные типы метрик.
 const (
+	// MetricTypeCounter метрика типа Счётчик.
 	MetricTypeCounter = "counter"
-	MetricTypeGauge   = "gauge"
+	// MetricTypeGauge метрика типа Датчик.
+	MetricTypeGauge = "gauge"
 )
 
+// Собираемые метрики.
 const (
 	MetricAlloc           = "Alloc"
 	MetricBuckHashSys     = "BuckHashSys"
@@ -55,10 +60,12 @@ const (
 	MetricCPUutilization1 = "CPUutilization1"
 )
 
+// Client представляет интерфейс для отправки метрик на сервер.
 type Client interface {
 	SendMetrics(metrics map[string]*model.Metrics) error
 }
 
+// Worker основная часть пакета. Содержит в себе логгер, настройки, клиент для отправки метрик, а так же хранит последние метрики.
 type Worker struct {
 	log    *zap.Logger
 	set    *agent.Settings
@@ -69,6 +76,7 @@ type Worker struct {
 	metrics   map[string]*model.Metrics
 }
 
+// NewWorker конструктор для Worker.
 func NewWorker(log *zap.Logger, set *agent.Settings, client Client) *Worker {
 	w := &Worker{
 		log:    log.With(zap.String("package", "metrics worker")),
@@ -81,12 +89,14 @@ func NewWorker(log *zap.Logger, set *agent.Settings, client Client) *Worker {
 	return w
 }
 
+// Start метод начинает осуществлять сбор данных в отдельной горутине.
 func (w *Worker) Start(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 	w.cancel = cancel
 	go w.startWorker(ctx)
 }
 
+// Stop прерывает выполнение Worker'а и останавливает сбор данных
 func (w *Worker) Stop(_ context.Context) {
 	w.cancel()
 }
