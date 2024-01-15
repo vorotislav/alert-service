@@ -17,8 +17,10 @@ import (
 
 // Типы метрик.
 const (
+	// MetricCounter метрика типа Счётчик.
 	MetricCounter = "counter"
-	MetricGauge   = "gauge"
+	// MetricGauge метрика типа Датчик.
+	MetricGauge = "gauge"
 )
 
 const (
