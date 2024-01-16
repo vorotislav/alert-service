@@ -47,6 +47,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/shadow"
 	"golang.org/x/tools/go/analysis/passes/structtag"
 
+	"honnef.co/go/tools/simple"
 	"honnef.co/go/tools/staticcheck"
 )
 
@@ -95,6 +96,12 @@ func main() {
 
 	for _, v := range staticcheck.Analyzers {
 		analyzers = append(analyzers, v.Analyzer)
+	}
+
+	for _, v := range simple.Analyzers {
+		if v.Analyzer.Name == "S1036" {
+			analyzers = append(analyzers, v.Analyzer)
+		}
 	}
 
 	multichecker.Main(analyzers...)
