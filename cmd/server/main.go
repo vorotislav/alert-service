@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -12,6 +13,12 @@ import (
 	"github.com/vorotislav/alert-service/internal/repository"
 	"github.com/vorotislav/alert-service/internal/settings/server"
 	"github.com/vorotislav/alert-service/internal/signals"
+)
+
+var (
+	BuildVersion string
+	BuildDate    string
+	BuildCommit  string
 )
 
 const serviceShutdownTimeout = 1 * time.Second
@@ -31,6 +38,7 @@ func main() {
 	defer logger.Sync()
 
 	logger.Debug("Server starting...")
+	logger.Debug(BuildInfo())
 	logger.Debug("Current settings",
 		zap.String("ip address", sets.Address),
 		zap.Bool("restore flag", *sets.Restore),
@@ -88,4 +96,18 @@ func main() {
 
 		defer ctxCancelShutdown()
 	}
+}
+
+func BuildInfo() string {
+	if BuildVersion == "" {
+		BuildVersion = "N/A"
+	}
+	if BuildCommit == "" {
+		BuildCommit = "N/A"
+	}
+	if BuildDate == "" {
+		BuildDate = "N/A"
+	}
+	return fmt.Sprintf("Build version: %s\nBuild date: %s\nBuild commit: %s\n",
+		BuildVersion, BuildDate, BuildCommit)
 }
