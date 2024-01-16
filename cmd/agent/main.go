@@ -26,7 +26,7 @@ func main() {
 	logger, err := zap.NewDevelopment()
 	if err != nil {
 		log.Printf("cannot create logger: %s", err.Error())
-		os.Exit(1)
+		return
 	}
 
 	defer logger.Sync()
