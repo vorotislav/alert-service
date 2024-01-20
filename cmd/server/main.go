@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -12,6 +13,12 @@ import (
 	"github.com/vorotislav/alert-service/internal/repository"
 	"github.com/vorotislav/alert-service/internal/settings/server"
 	"github.com/vorotislav/alert-service/internal/signals"
+)
+
+var (
+	BuildVersion = "N/A"
+	BuildDate    = "N/A"
+	BuildCommit  = "N/A"
 )
 
 const serviceShutdownTimeout = 1 * time.Second
@@ -25,12 +32,14 @@ func main() {
 	if err != nil {
 		log.Printf("cannot create logger: %s", err.Error())
 
-		os.Exit(1)
+		return
 	}
 
 	defer logger.Sync()
 
 	logger.Debug("Server starting...")
+	logger.Debug(fmt.Sprintf("Build version: %s\nBuild date: %s\nBuild commit: %s\n",
+		BuildVersion, BuildDate, BuildCommit))
 	logger.Debug("Current settings",
 		zap.String("ip address", sets.Address),
 		zap.Bool("restore flag", *sets.Restore),

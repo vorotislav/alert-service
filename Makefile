@@ -1,5 +1,12 @@
 PROGRAM_NAME = alert-service
 
+BUILD_VERSION=$(shell git describe --tags)
+BUILD_DATE=$(shell date +%FT%T%z)
+BUILD_COMMIT=$(shell git rev-parse --short HEAD)
+
+LDFLAGS_AGENT=-X main.BuildVersion=$(BUILD_VERSION) -X main.BuildDate=$(BUILD_DATE) -X main.BuildCommit=$(BUILD_COMMIT)
+LDFLAGS_SERVER=-X main.BuildVersion=$(BUILD_VERSION) -X main.BuildDate=$(BUILD_DATE) -X main.BuildCommit=$(BUILD_COMMIT)
+
 .PHONY: help dep fmt test
 
 dep: ## Get the dependencies
@@ -24,6 +31,16 @@ cover: dep ## Run app tests with coverage report
 build-mocks: dep
 	@mockgen -destination=internal/http/handlers/mocks/mock_repo.go -package=mocks github.com/vorotislav/alert-service/internal/http/handlers Repository
 
-build:
+build-clear:
 	go build -o ./cmd/server/server ./cmd/server
 	go build -o ./cmd/agent/agent ./cmd/agent
+
+build:
+	go build -ldflags "${LDFLAGS_SERVER}" -o ./cmd/server/server ./cmd/server
+	go build -ldflags "${LDFLAGS_AGENT}" -o ./cmd/agent/agent ./cmd/agent
+
+run-agent:
+	go run -ldflags "${LDFLAGS}" ./cmd/agent
+
+run-server:
+	go run -ldflags "${LDFLAGS}" ./cmd/server

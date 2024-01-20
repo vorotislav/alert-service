@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"time"
@@ -17,6 +18,12 @@ import (
 
 const workerShutdownTimeout = 1 * time.Second
 
+var (
+	BuildVersion = "N/A"
+	BuildDate    = "N/A"
+	BuildCommit  = "N/A"
+)
+
 func main() {
 
 	sets := agent.Settings{}
@@ -26,12 +33,14 @@ func main() {
 	logger, err := zap.NewDevelopment()
 	if err != nil {
 		log.Printf("cannot create logger: %s", err.Error())
-		os.Exit(1)
+		return
 	}
 
 	defer logger.Sync()
 
 	logger.Debug("Agent starting...")
+	logger.Info(fmt.Sprintf("Build version: %s\nBuild date: %s\nBuild commit: %s\n",
+		BuildVersion, BuildDate, BuildCommit))
 	logger.Debug("Current settings",
 		zap.String("server address", sets.ServerAddress),
 		zap.Int("report interval", sets.ReportInterval),
