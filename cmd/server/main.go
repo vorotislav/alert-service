@@ -16,9 +16,9 @@ import (
 )
 
 var (
-	BuildVersion string
-	BuildDate    string
-	BuildCommit  string
+	BuildVersion = "N/A"
+	BuildDate    = "N/A"
+	BuildCommit  = "N/A"
 )
 
 const serviceShutdownTimeout = 1 * time.Second
@@ -38,7 +38,8 @@ func main() {
 	defer logger.Sync()
 
 	logger.Debug("Server starting...")
-	logger.Debug(BuildInfo())
+	logger.Debug(fmt.Sprintf("Build version: %s\nBuild date: %s\nBuild commit: %s\n",
+		BuildVersion, BuildDate, BuildCommit))
 	logger.Debug("Current settings",
 		zap.String("ip address", sets.Address),
 		zap.Bool("restore flag", *sets.Restore),
@@ -96,18 +97,4 @@ func main() {
 
 		defer ctxCancelShutdown()
 	}
-}
-
-func BuildInfo() string {
-	if BuildVersion == "" {
-		BuildVersion = "N/A"
-	}
-	if BuildCommit == "" {
-		BuildCommit = "N/A"
-	}
-	if BuildDate == "" {
-		BuildDate = "N/A"
-	}
-	return fmt.Sprintf("Build version: %s\nBuild date: %s\nBuild commit: %s\n",
-		BuildVersion, BuildDate, BuildCommit)
 }

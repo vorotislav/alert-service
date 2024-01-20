@@ -19,9 +19,9 @@ import (
 const workerShutdownTimeout = 1 * time.Second
 
 var (
-	BuildVersion string
-	BuildDate    string
-	BuildCommit  string
+	BuildVersion = "N/A"
+	BuildDate    = "N/A"
+	BuildCommit  = "N/A"
 )
 
 func main() {
@@ -39,7 +39,8 @@ func main() {
 	defer logger.Sync()
 
 	logger.Debug("Agent starting...")
-	logger.Info(BuildInfo())
+	logger.Info(fmt.Sprintf("Build version: %s\nBuild date: %s\nBuild commit: %s\n",
+		BuildVersion, BuildDate, BuildCommit))
 	logger.Debug("Current settings",
 		zap.String("server address", sets.ServerAddress),
 		zap.Int("report interval", sets.ReportInterval),
@@ -68,18 +69,4 @@ func main() {
 	worker.Stop(ctxShutdown)
 
 	defer ctxCancelShutdown()
-}
-
-func BuildInfo() string {
-	if BuildVersion == "" {
-		BuildVersion = "N/A"
-	}
-	if BuildCommit == "" {
-		BuildCommit = "N/A"
-	}
-	if BuildDate == "" {
-		BuildDate = "N/A"
-	}
-	return fmt.Sprintf("Build version: %s\nBuild date: %s\nBuild commit: %s\n",
-		BuildVersion, BuildDate, BuildCommit)
 }
