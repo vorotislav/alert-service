@@ -3,22 +3,29 @@ package main
 import (
 	"flag"
 
-	"github.com/caarlos0/env/v6"
 	"github.com/vorotislav/alert-service/internal/settings/agent"
+
+	"github.com/caarlos0/env/v6"
+)
+
+const (
+	defaultPollInterval   = 2
+	defaultReportInterval = 10
+	defaultRateLimit      = 3
 )
 
 func parseFlags(sets *agent.Settings) {
-	if err := env.Parse(sets); err == nil {
+	if err := env.Parse(sets); err == nil { //nolint:nestif
 		if sets.ServerAddress == "" {
 			flag.StringVar(&sets.ServerAddress, "a", "localhost:8080", "server url")
 		}
 
 		if sets.PollInterval == 0 {
-			flag.IntVar(&sets.PollInterval, "p", 2, "poll interval, sec")
+			flag.IntVar(&sets.PollInterval, "p", defaultPollInterval, "poll interval, sec")
 		}
 
 		if sets.ReportInterval == 0 {
-			flag.IntVar(&sets.ReportInterval, "r", 10, "report interval, sec")
+			flag.IntVar(&sets.ReportInterval, "r", defaultReportInterval, "report interval, sec")
 		}
 
 		if sets.HashKey == "" {
@@ -26,7 +33,7 @@ func parseFlags(sets *agent.Settings) {
 		}
 
 		if sets.RateLimit == 0 {
-			flag.IntVar(&sets.RateLimit, "l", 3, "rate limit of worker pool")
+			flag.IntVar(&sets.RateLimit, "l", defaultRateLimit, "rate limit of worker pool")
 		}
 	}
 

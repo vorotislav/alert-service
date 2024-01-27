@@ -14,12 +14,12 @@ import (
 	"github.com/vorotislav/alert-service/internal/settings/server"
 
 	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres" // init migrate package
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
-	_ "github.com/lib/pq"
+	_ "github.com/lib/pq" // init pq package
 	"go.uber.org/zap"
 )
 
@@ -53,7 +53,7 @@ func NewStorage(ctx context.Context, log *zap.Logger, set *server.Settings) (*St
 	if err != nil {
 		log.Error("cannot create pool", zap.Error(err))
 
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", ErrCreateStorage, err)
 	}
 
 	s := &Storage{
@@ -77,8 +77,9 @@ func (s *Storage) migrate() error {
 	}
 
 	connCfg := s.pool.Config().ConnConfig
+
 	m, err := migrate.NewWithSourceInstance("iofs", d,
-		fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
+		fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable", //nolint:nosprintfhostport
 			connCfg.User, connCfg.Password, connCfg.Host, connCfg.Port, connCfg.Database))
 	if err != nil {
 		return fmt.Errorf("%w:%w", ErrSourceInstance, err)
@@ -98,7 +99,7 @@ func (s *Storage) migrate() error {
 
 // Ping возвращает доступность БД.
 func (s *Storage) Ping(ctx context.Context) error {
-	return s.pool.Ping(ctx)
+	return s.pool.Ping(ctx) //nolint:wrapcheck
 }
 
 // Stop закрывает пул соединений.
@@ -128,7 +129,7 @@ func (s *Storage) retryQueryRow(ctx context.Context, query string, result any, a
 
 		var pgErr *pgconn.PgError
 		if !errors.As(err, &pgErr) {
-			return err
+			return err //nolint:wrapcheck
 		}
 
 		if errors.As(err, &pgErr) && pgerrcode.IsConnectionException(pgErr.Code) {
@@ -144,12 +145,13 @@ func (s *Storage) retryQueryRow(ctx context.Context, query string, result any, a
 		}
 	}
 
-	return err
+	return err //nolint:wrapcheck
 }
 
 // UpdateMetric обновляет значение метрики в БД в зависимости от типа метрики.
 func (s *Storage) UpdateMetric(ctx context.Context, metric model.Metrics) (model.Metrics, error) {
 	var err error
+
 	switch metric.MType {
 	case model.MetricGauge:
 		{
@@ -170,6 +172,7 @@ func (s *Storage) UpdateMetric(ctx context.Context, metric model.Metrics) (model
 			metric.Delta = &delta
 		}
 	}
+
 	if err != nil {
 		return model.Metrics{}, fmt.Errorf("update metric: %w", err)
 	}
@@ -193,7 +196,7 @@ func (s *Storage) GetCounterValue(ctx context.Context, name string) (int64, erro
 func (s *Storage) AllMetrics(ctx context.Context) ([]byte, error) {
 	rows, err := s.pool.Query(ctx, "SELECT name, type, delta, value FROM metrics")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("query all metrics: %w", err)
 	}
 
 	defer rows.Close()
@@ -202,13 +205,15 @@ func (s *Storage) AllMetrics(ctx context.Context) ([]byte, error) {
 
 	for rows.Next() {
 		m := model.Metrics{}
+
 		var (
 			delta sql.NullInt64
 			value sql.NullFloat64
 		)
+
 		err = rows.Scan(&m.ID, &m.MType, &delta, &value)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("scan row: %w", err)
 		}
 
 		if delta.Valid {
@@ -224,12 +229,12 @@ func (s *Storage) AllMetrics(ctx context.Context) ([]byte, error) {
 
 	err = rows.Err()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("rows: %w", err)
 	}
 
 	bytes, err := json.Marshal(metrics)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("json marshal: %w", err)
 	}
 
 	return bytes, nil
@@ -251,6 +256,7 @@ func (s *Storage) GetGaugeValue(ctx context.Context, name string) (float64, erro
 func (s *Storage) UpdateMetrics(ctx context.Context, metrics []model.Metrics) error {
 	counters := make([]model.Metrics, 0)
 	gauges := make([]model.Metrics, 0)
+
 	for _, m := range metrics {
 		if m.MType == model.MetricCounter {
 			counters = append(counters, m)
@@ -273,6 +279,7 @@ func (s *Storage) UpdateMetrics(ctx context.Context, metrics []model.Metrics) er
 func (s *Storage) updateCounters(ctx context.Context, metrics []model.Metrics) error {
 	for _, m := range metrics {
 		m := m
+
 		_, err := s.UpdateMetric(ctx, m)
 		if err != nil {
 			return fmt.Errorf("cannot update counter metric: %w", err)
@@ -292,7 +299,9 @@ func (s *Storage) updateGauges(ctx context.Context, metrics []model.Metrics) err
 		return fmt.Errorf("cannot start transaction for update gauge metrics: %w", err)
 	}
 
-	defer tx.Rollback(ctx)
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
 
 	for _, m := range metrics {
 		_, err := tx.Exec(ctx, qI, m.ID, m.MType, m.Value)

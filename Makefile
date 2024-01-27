@@ -4,8 +4,8 @@ BUILD_VERSION=$(shell git describe --tags)
 BUILD_DATE=$(shell date +%FT%T%z)
 BUILD_COMMIT=$(shell git rev-parse --short HEAD)
 
-LDFLAGS_AGENT=-X main.BuildVersion=$(BUILD_VERSION) -X main.BuildDate=$(BUILD_DATE) -X main.BuildCommit=$(BUILD_COMMIT)
-LDFLAGS_SERVER=-X main.BuildVersion=$(BUILD_VERSION) -X main.BuildDate=$(BUILD_DATE) -X main.BuildCommit=$(BUILD_COMMIT)
+LDFLAGS_AGENT=-X main.buildVersion=$(BUILD_VERSION) -X main.buildDate=$(BUILD_DATE) -X main.buildCommit=$(BUILD_COMMIT)
+LDFLAGS_SERVER=-X main.buildVersion=$(BUILD_VERSION) -X main.buildDate=$(BUILD_DATE) -X main.buildCommit=$(BUILD_COMMIT)
 
 .PHONY: help dep fmt test
 
@@ -28,6 +28,9 @@ cover: dep ## Run app tests with coverage report
 	## Remove coverage report
 	sleep 2 && rm -f .coverage.out .coverage.html
 
+lint: ## Lint the source files
+	golangci-lint run --timeout 5m
+
 build-mocks: dep
 	@mockgen -destination=internal/http/handlers/mocks/mock_repo.go -package=mocks github.com/vorotislav/alert-service/internal/http/handlers Repository
 
@@ -40,7 +43,7 @@ build:
 	go build -ldflags "${LDFLAGS_AGENT}" -o ./cmd/agent/agent ./cmd/agent
 
 run-agent:
-	go run -ldflags "${LDFLAGS}" ./cmd/agent
+	go run -ldflags "${LDFLAGS_AGENT}" ./cmd/agent
 
 run-server:
-	go run -ldflags "${LDFLAGS}" ./cmd/server
+	go run -ldflags "${LDFLAGS_SERVER}" ./cmd/server

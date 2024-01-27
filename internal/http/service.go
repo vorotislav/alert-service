@@ -3,8 +3,10 @@ package http
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/pprof"
+	"time"
 
 	"github.com/vorotislav/alert-service/internal/http/handlers"
 	"github.com/vorotislav/alert-service/internal/http/middlewares"
@@ -15,6 +17,12 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 )
+
+const (
+	defaultReadHeaderTimeout = time.Second
+)
+
+const defaultCompressLevel = 9
 
 // Service сущность сервиса. Хранит логгер, http-сервер, обработчик и репозиторий.
 type Service struct {
@@ -34,8 +42,8 @@ func NewService(
 	r := chi.NewRouter()
 
 	r.Use(middlewares.New(log))
-	//r.Use(middlewares.CompressMiddleware)
-	r.Use(middleware.Compress(9, "text/html", "text/plain", "application/json"))
+	r.Use(middleware.Compress(defaultCompressLevel, "text/html", "text/plain", "application/json"))
+
 	if set.HashKey != "" {
 		r.Use(middlewares.Hash(log, set.HashKey))
 	}
@@ -71,8 +79,9 @@ func NewService(
 	r.HandleFunc("/debug/pprof/heap", pprof.Index)
 
 	hs := &http.Server{
-		Addr:    set.Address,
-		Handler: r,
+		Addr:              set.Address,
+		Handler:           r,
+		ReadHeaderTimeout: defaultReadHeaderTimeout,
 	}
 
 	return &Service{
@@ -86,15 +95,22 @@ func NewService(
 // Run запускает http-сервер.
 func (s *Service) Run() error {
 	s.logger.Info("Running server on", zap.String("address", s.server.Addr))
-	return s.server.ListenAndServe()
+
+	return s.server.ListenAndServe() //nolint:wrapcheck
 }
 
 // Stop останавливает http-сервер.
 func (s *Service) Stop(ctx context.Context) error {
 	s.logger.Debug("Stopping service")
+
 	if err := s.repo.Stop(ctx); err != nil {
 		s.logger.Error("error of repo stop", zap.Error(err))
 	}
 
-	return s.server.Shutdown(ctx)
+	err := s.server.Shutdown(ctx)
+	if err != nil {
+		return fmt.Errorf("server shutdown: %w", err)
+	}
+
+	return nil
 }

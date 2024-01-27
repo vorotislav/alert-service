@@ -8,7 +8,7 @@ import (
 )
 
 type OSSignals struct {
-	ctx context.Context
+	ctx context.Context //nolint:containedctx
 	ch  chan os.Signal
 }
 

@@ -8,7 +8,7 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 )
 
-var Analyzer = &analysis.Analyzer{
+var Analyzer = &analysis.Analyzer{ //nolint:gochecknoglobals
 	Name:             "exiter",
 	Doc:              "check for os.Exit",
 	Requires:         []*analysis.Analyzer{inspect.Analyzer},
@@ -25,24 +25,30 @@ func run(pass *analysis.Pass) (any, error) {
 		if !isMain || x.X == nil {
 			return false
 		}
+
 		ident, ok := x.X.(*ast.Ident)
 		if !ok {
 			return false
 		}
+
 		if ident.Name == "os" && x.Sel.Name == "Exit" {
 			pass.Reportf(ident.NamePos, "os.Exit called in main func in main package")
+
 			return true
 		}
+
 		return false
 	}
 
-	i := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+	i := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector) //nolint:forcetypeassert
 	nodeFilter := []ast.Node{
 		(*ast.File)(nil),
 		(*ast.FuncDecl)(nil),
 		(*ast.SelectorExpr)(nil),
 	}
+
 	mainInspecting := false
+
 	i.Preorder(nodeFilter, func(n ast.Node) {
 		switch x := n.(type) {
 		case *ast.File:
@@ -53,6 +59,7 @@ func run(pass *analysis.Pass) (any, error) {
 			f := isMainFunc(x)
 			if mainInspecting && !f { // если до этого инспектировали main, а теперь нет - можно заканчивать
 				mainInspecting = false
+
 				return
 			}
 			mainInspecting = f
@@ -63,5 +70,5 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 	})
 
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }

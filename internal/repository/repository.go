@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/vorotislav/alert-service/internal/model"
 	"github.com/vorotislav/alert-service/internal/repository/localstorage"
@@ -22,9 +23,20 @@ type Repository interface {
 }
 
 func NewRepository(ctx context.Context, log *zap.Logger, set *server.Settings) (Repository, error) {
+	var (
+		r   Repository
+		err error
+	)
+
 	if set.DatabaseDSN == "" {
-		return localstorage.NewMemStorage(ctx, log, set)
+		r, err = localstorage.NewMemStorage(ctx, log, set)
 	} else {
-		return postgres.NewStorage(ctx, log, set)
+		r, err = postgres.NewStorage(ctx, log, set)
 	}
+
+	if err != nil {
+		return nil, fmt.Errorf("create repository: %w", err)
+	}
+
+	return r, nil
 }

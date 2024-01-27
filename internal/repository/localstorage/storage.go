@@ -17,6 +17,11 @@ import (
 var (
 	ErrNotFound            = errors.New("metrics not found")
 	ErrStorageNotAvailable = errors.New("storage not available")
+	ErrUpdatesNotAvailbale = errors.New("cannot update metrics in local storage")
+)
+
+const (
+	defaultStorageFilePermission = 0o666
 )
 
 type MemStorage struct {
@@ -37,11 +42,13 @@ func NewMemStorage(ctx context.Context, log *zap.Logger, set *server.Settings) (
 		err         error
 		saveMetrics bool
 	)
+
 	if set.FileStoragePath != "" {
-		file, err = os.OpenFile(set.FileStoragePath, os.O_RDWR|os.O_CREATE, 0666)
+		file, err = os.OpenFile(set.FileStoragePath, os.O_RDWR|os.O_CREATE, defaultStorageFilePermission)
 		if err != nil {
 			return nil, fmt.Errorf("cannot open file for metrics: %w", err)
 		}
+
 		saveMetrics = true
 	}
 
@@ -57,6 +64,7 @@ func NewMemStorage(ctx context.Context, log *zap.Logger, set *server.Settings) (
 
 	if *set.StoreInterval > 0 {
 		go store.asyncLoop(ctx, *set.StoreInterval)
+
 		store.async = true
 	}
 
@@ -74,7 +82,7 @@ func (m *MemStorage) Stop(_ context.Context) error {
 	m.log.Debug("stopping store...")
 
 	if m.file != nil {
-		return m.file.Close()
+		return m.file.Close() //nolint:wrapcheck
 	}
 
 	return nil
@@ -112,7 +120,7 @@ func (m *MemStorage) GetCounterValue(_ context.Context, name string) (int64, err
 func (m *MemStorage) AllMetrics(_ context.Context) ([]byte, error) {
 	resp, err := json.Marshal(m.Metrics)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read all metrics: %w", err)
 	}
 
 	return resp, nil
@@ -128,14 +136,15 @@ func (m *MemStorage) GetGaugeValue(_ context.Context, name string) (float64, err
 }
 
 func (m *MemStorage) writeMetrics() error {
-	//if err := m.file.Truncate(0); err != nil {
+	// if err := m.file.Truncate(0); err != nil {
 	//	m.log.Info("cannot truncate file", zap.Error(err))
-	//}
+	// }
 	if err := m.encoder.Encode(m.Metrics); err != nil {
 		return fmt.Errorf("cannot write counter metrics: %w", err)
 	}
 
-	m.file.Seek(0, 0)
+	_, _ = m.file.Seek(0, 0)
+
 	return nil
 }
 
@@ -154,12 +163,15 @@ func (m *MemStorage) asyncLoop(ctx context.Context, timeout int) {
 		select {
 		case <-ctx.Done():
 			m.log.Info("context is done")
+
 			if err := m.writeMetrics(); err != nil {
 				m.log.Info("cannot write metrics", zap.Error(err))
 			}
+
 			return
 		case <-t.C:
 			m.log.Info("write to file")
+
 			if err := m.writeMetrics(); err != nil {
 				m.log.Info("cannot write metrics", zap.Error(err))
 			}
@@ -176,5 +188,5 @@ func (m *MemStorage) Ping(_ context.Context) error {
 }
 
 func (m *MemStorage) UpdateMetrics(_ context.Context, _ []model.Metrics) error {
-	return fmt.Errorf("cannot update metrics in local storage")
+	return ErrUpdatesNotAvailbale
 }

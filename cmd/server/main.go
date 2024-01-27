@@ -7,18 +7,18 @@ import (
 	"os"
 	"time"
 
-	"go.uber.org/zap"
-
 	"github.com/vorotislav/alert-service/internal/http"
 	"github.com/vorotislav/alert-service/internal/repository"
 	"github.com/vorotislav/alert-service/internal/settings/server"
 	"github.com/vorotislav/alert-service/internal/signals"
+
+	"go.uber.org/zap"
 )
 
 var (
-	BuildVersion = "N/A"
-	BuildDate    = "N/A"
-	BuildCommit  = "N/A"
+	buildVersion = "N/A" //nolint:gochecknoglobals
+	buildDate    = "N/A" //nolint:gochecknoglobals
+	buildCommit  = "N/A" //nolint:gochecknoglobals
 )
 
 const serviceShutdownTimeout = 1 * time.Second
@@ -35,11 +35,13 @@ func main() {
 		return
 	}
 
-	defer logger.Sync()
+	defer func() {
+		_ = logger.Sync()
+	}()
 
 	logger.Debug("Server starting...")
 	logger.Debug(fmt.Sprintf("Build version: %s\nBuild date: %s\nBuild commit: %s\n",
-		BuildVersion, BuildDate, BuildCommit))
+		buildVersion, buildDate, buildCommit))
 	logger.Debug("Current settings",
 		zap.String("ip address", sets.Address),
 		zap.Bool("restore flag", *sets.Restore),
@@ -89,6 +91,7 @@ func main() {
 		}
 	case <-ctx.Done():
 		logger.Info("Server stopping...")
+
 		ctxShutdown, ctxCancelShutdown := context.WithTimeout(context.Background(), serviceShutdownTimeout)
 
 		if err := s.Stop(ctxShutdown); err != nil {
