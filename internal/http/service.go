@@ -1,4 +1,4 @@
-// Пакет http представляет сервис для создания обработчика, настройки маршрутов и запуска и остановки http сервера.
+// Package http представляет сервис для создания обработчика, настройки маршрутов и запуска и остановки http сервера.
 package http
 
 import (
@@ -14,15 +14,12 @@ import (
 	"github.com/vorotislav/alert-service/internal/settings/server"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 )
 
 const (
 	defaultReadHeaderTimeout = time.Second
 )
-
-const defaultCompressLevel = 9
 
 // Service сущность сервиса. Хранит логгер, http-сервер, обработчик и репозиторий.
 type Service struct {
@@ -42,7 +39,7 @@ func NewService(
 	r := chi.NewRouter()
 
 	r.Use(middlewares.New(log))
-	r.Use(middleware.Compress(defaultCompressLevel, "text/html", "text/plain", "application/json"))
+	r.Use(middlewares.CompressMiddleware)
 
 	if set.HashKey != "" {
 		r.Use(middlewares.Hash(log, set.HashKey))
