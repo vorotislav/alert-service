@@ -5,9 +5,12 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"os"
 )
+
+var ErrDecodePublicKey = errors.New("decode pem public key")
 
 func Encrypt(publicKeyPath string, data []byte) ([]byte, error) {
 	publicKeyPEM, err := os.ReadFile(publicKeyPath)
@@ -17,7 +20,7 @@ func Encrypt(publicKeyPath string, data []byte) ([]byte, error) {
 
 	block, _ := pem.Decode(publicKeyPEM)
 	if block == nil {
-		return nil, fmt.Errorf("decode pem public key")
+		return nil, ErrDecodePublicKey
 	}
 
 	cert, err := x509.ParseCertificate(block.Bytes)
