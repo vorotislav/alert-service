@@ -35,6 +35,10 @@ func parseFlags(sets *agent.Settings) {
 		if sets.RateLimit == 0 {
 			flag.IntVar(&sets.RateLimit, "l", defaultRateLimit, "rate limit of worker pool")
 		}
+
+		if sets.CryptoKey == "" {
+			flag.StringVar(&sets.CryptoKey, "crypto-key", "", "path to file with public key")
+		}
 	}
 
 	flag.Parse()

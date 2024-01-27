@@ -40,6 +40,10 @@ func parseFlag(sets *server.Settings) {
 
 	flag.StringVar(&hashKey, "k", "", "hash key")
 
+	var cryptoKey string
+
+	flag.StringVar(&cryptoKey, "crypto-key", "", "path to file with private key")
+
 	flag.Parse()
 
 	if err := env.Parse(sets); err != nil {
@@ -68,5 +72,9 @@ func parseFlag(sets *server.Settings) {
 
 	if sets.HashKey == "" {
 		sets.HashKey = hashKey
+	}
+
+	if sets.CryptoKey == "" {
+		sets.CryptoKey = cryptoKey
 	}
 }
