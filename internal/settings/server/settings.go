@@ -8,4 +8,5 @@ type Settings struct {
 	Restore         *bool  `env:"RESTORE"`
 	DatabaseDSN     string `env:"DATABASE_DSN"`
 	HashKey         string `env:"KEY"`
+	CryptoKey       string `env:"CRYPTO_KEY"`
 }
