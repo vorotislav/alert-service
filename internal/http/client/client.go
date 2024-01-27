@@ -11,6 +11,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/vorotislav/alert-service/internal/encrypt"
+
 	"github.com/vorotislav/alert-service/internal/model"
 	"github.com/vorotislav/alert-service/internal/settings/agent"
 	"github.com/vorotislav/alert-service/internal/utils"
@@ -115,6 +117,13 @@ func (c *Client) sendMetricRetry(metric *model.Metrics) error {
 		c.logger.Error("cannot compress data", zap.Error(err))
 
 		return fmt.Errorf("%w: %w", ErrSendMetrics, err)
+	}
+
+	if c.set.CryptoKey != "" {
+		compressRaw, err = encrypt.Encrypt(c.set.CryptoKey, compressRaw)
+		if err != nil {
+			return fmt.Errorf("encrypt data: %w", err)
+		}
 	}
 
 	req, err := http.NewRequest(
