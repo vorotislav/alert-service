@@ -39,11 +39,16 @@ func NewService(
 	r := chi.NewRouter()
 
 	r.Use(middlewares.New(log))
-	r.Use(middlewares.CompressMiddleware)
 
 	if set.HashKey != "" {
 		r.Use(middlewares.Hash(log, set.HashKey))
 	}
+
+	if set.CryptoKey != "" {
+		r.Use(middlewares.DecryptMiddleware(log, set.CryptoKey))
+	}
+
+	r.Use(middlewares.CompressMiddleware)
 
 	handler := handlers.NewHandler(log, repo)
 
