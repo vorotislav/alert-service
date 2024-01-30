@@ -24,6 +24,7 @@ func (oss *OSSignals) Subscribe(onSignal func(signal os.Signal)) {
 		os.Interrupt,
 		syscall.SIGINT,
 		syscall.SIGTERM,
+		syscall.SIGQUIT,
 	}
 
 	signal.Notify(oss.ch, signals...)
