@@ -9,4 +9,14 @@ type Settings struct {
 	DatabaseDSN     string `env:"DATABASE_DSN"`
 	HashKey         string `env:"KEY"`
 	CryptoKey       string `env:"CRYPTO_KEY"`
+	Config          string `env:"CONFIG"`
+}
+
+type Config struct {
+	Address       string  `json:"address"`
+	Restore       *bool   `json:"restore,omitempty"`
+	StoreInterval *string `json:"store_interval,omitempty"`
+	StoreFile     string  `json:"store_file"`
+	DatabaseDsn   string  `json:"database_dsn"`
+	CryptoKey     string  `json:"crypto_key"`
 }
