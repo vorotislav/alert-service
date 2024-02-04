@@ -27,6 +27,11 @@ const (
 	queryRepoTimeout = time.Second + 2
 )
 
+const (
+	jsonContentType = "application/json"
+	textContentType = "text/plain"
+)
+
 // Repository интерфейс хранилища, который необходим для работы с метриками.
 type Repository interface {
 	UpdateMetric(ctx context.Context, metric model.Metrics) (model.Metrics, error)
@@ -57,7 +62,8 @@ func (h *Handler) logInfo(msg string, status, size int) {
 
 func setContentType(w http.ResponseWriter, contentType string) {
 	w.Header().Set("Content-Type", contentType)
-	if contentType == "text/plain" {
+
+	if contentType == textContentType {
 		w.Header().Add("Content-Type", "charset=utf-8")
 	}
 }
@@ -66,6 +72,7 @@ func setContentType(w http.ResponseWriter, contentType string) {
 func (h *Handler) Ping(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), queryRepoTimeout)
 	defer cancel()
+
 	err := h.repo.Ping(ctx)
 	if err != nil {
 		http.Error(w, "repository is not available", http.StatusInternalServerError)
@@ -89,6 +96,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		h.logInfo("Failed update metrics: unknown metrics type", http.StatusBadRequest, 0)
 
 		http.Error(w, "unknown metrics type", http.StatusBadRequest)
+
 		return
 	}
 }
@@ -107,6 +115,7 @@ func (h *Handler) updateCounter(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), queryRepoTimeout)
 	defer cancel()
+
 	_, err = h.repo.UpdateMetric(ctx, model.Metrics{
 		ID:    metricName,
 		MType: model.MetricCounter,
@@ -122,7 +131,7 @@ func (h *Handler) updateCounter(w http.ResponseWriter, r *http.Request) {
 
 	h.logInfo("Success update counter metrics", http.StatusOK, 0)
 
-	setContentType(w, "text/plain")
+	setContentType(w, textContentType)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -142,6 +151,7 @@ func (h *Handler) updateGauge(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), queryRepoTimeout)
 	defer cancel()
+
 	_, err = h.repo.UpdateMetric(ctx, model.Metrics{
 		ID:    metricName,
 		MType: model.MetricGauge,
@@ -162,9 +172,10 @@ func (h *Handler) updateGauge(w http.ResponseWriter, r *http.Request) {
 	h.logInfo("Success update gauge metrics", http.StatusOK, 0)
 }
 
-// UpdateJSON функция-обработчик для /update. Endpoint принимает в качестве тела запроса json с описанием метрики и нового значения. Только одна метрика.
-func (h *Handler) UpdateJSON(w http.ResponseWriter, r *http.Request) {
-	if contentType := r.Header.Get("Content-Type"); contentType != "application/json" {
+// UpdateJSON функция-обработчик для /update.
+// Endpoint принимает в качестве тела запроса json с описанием метрики и нового значения. Только одна метрика.
+func (h *Handler) UpdateJSON(w http.ResponseWriter, r *http.Request) { //nolint:funlen
+	if contentType := r.Header.Get("Content-Type"); contentType != jsonContentType {
 		h.logInfo(fmt.Sprintf("Failed to update metrics: unknown ContentType %s", contentType),
 			http.StatusBadRequest, 0)
 
@@ -236,11 +247,13 @@ func (h *Handler) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 	resp, err := json.Marshal(m)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+
 		return
 	}
 
-	setContentType(w, "application/json")
+	setContentType(w, jsonContentType)
 	w.WriteHeader(http.StatusOK)
+
 	size, err := w.Write(resp)
 	if err != nil {
 		h.logInfo(fmt.Sprintf("Error of write resp: %s", err.Error()), http.StatusInternalServerError, 0)
@@ -251,7 +264,7 @@ func (h *Handler) UpdateJSON(w http.ResponseWriter, r *http.Request) {
 
 // Updates функция-обработчик для /updates. Тело состоит из массива json-объектов, с описанием метрики и нового значения.
 func (h *Handler) Updates(w http.ResponseWriter, r *http.Request) {
-	if contentType := r.Header.Get("Content-Type"); contentType != "application/json" {
+	if contentType := r.Header.Get("Content-Type"); contentType != jsonContentType {
 		h.logInfo(fmt.Sprintf("Failed to update metrics: unknown Content-Type: %s", contentType),
 			http.StatusBadRequest, 0)
 
@@ -261,6 +274,7 @@ func (h *Handler) Updates(w http.ResponseWriter, r *http.Request) {
 	}
 
 	metrics := make([]model.Metrics, 0)
+
 	err := json.NewDecoder(r.Body).Decode(&metrics)
 	if err != nil {
 		h.logInfo(fmt.Sprintf("Failed to update metrics: cannot decode metrics: %s", err.Error()),
@@ -273,6 +287,7 @@ func (h *Handler) Updates(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithTimeout(r.Context(), queryRepoTimeout)
 	defer cancel()
+
 	if err := h.repo.UpdateMetrics(ctx, metrics); err != nil {
 		h.logInfo(fmt.Sprintf("Failed to update metrics: %s", err.Error()),
 			http.StatusBadRequest, 0)
@@ -282,8 +297,9 @@ func (h *Handler) Updates(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	setContentType(w, "application/json")
+	setContentType(w, jsonContentType)
 	w.WriteHeader(http.StatusOK)
+
 	size, err := w.Write([]byte(`{}`))
 	if err != nil {
 		h.logInfo(fmt.Sprintf("Error of write resp: %s", err.Error()),
@@ -344,13 +360,13 @@ func (h *Handler) Value(w http.ResponseWriter, r *http.Request) {
 
 	h.logInfo("Get gauge metrics", http.StatusOK, size)
 
-	setContentType(w, "text/plain")
+	setContentType(w, textContentType)
 	w.WriteHeader(http.StatusOK)
 }
 
 // ValueJSON функция-обработчик для /value. Через POST запрос передаётся json-объект с указанием метрики, значение которой необходимо вернуть.
-func (h *Handler) ValueJSON(w http.ResponseWriter, r *http.Request) {
-	if contentType := r.Header.Get("Content-Type"); contentType != "application/json" {
+func (h *Handler) ValueJSON(w http.ResponseWriter, r *http.Request) { //nolint:funlen
+	if contentType := r.Header.Get("Content-Type"); contentType != jsonContentType {
 		h.logInfo(fmt.Sprintf("Failed to get metrics: unknown Content-Type: %s", contentType),
 			http.StatusBadRequest, 0)
 
@@ -414,10 +430,11 @@ func (h *Handler) ValueJSON(w http.ResponseWriter, r *http.Request) {
 	resp, err := json.Marshal(m)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+
 		return
 	}
 
-	setContentType(w, "application/json")
+	setContentType(w, jsonContentType)
 	w.WriteHeader(http.StatusOK)
 
 	size, err := w.Write(resp)
@@ -432,6 +449,7 @@ func (h *Handler) ValueJSON(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) AllValue(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), queryRepoTimeout)
 	defer cancel()
+
 	resp, err := h.repo.AllMetrics(ctx)
 	if err != nil {
 		h.logInfo(fmt.Sprintf("Failed to get all metrics: %s", err.Error()),

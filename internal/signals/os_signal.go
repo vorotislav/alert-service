@@ -8,7 +8,7 @@ import (
 )
 
 type OSSignals struct {
-	ctx context.Context
+	ctx context.Context //nolint:containedctx
 	ch  chan os.Signal
 }
 
@@ -24,6 +24,7 @@ func (oss *OSSignals) Subscribe(onSignal func(signal os.Signal)) {
 		os.Interrupt,
 		syscall.SIGINT,
 		syscall.SIGTERM,
+		syscall.SIGQUIT,
 	}
 
 	signal.Notify(oss.ch, signals...)

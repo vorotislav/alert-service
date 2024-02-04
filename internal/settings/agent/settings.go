@@ -7,4 +7,13 @@ type Settings struct {
 	PollInterval   int    `env:"POLL_INTERVAL"`
 	HashKey        string `env:"KEY"`
 	RateLimit      int    `env:"RATE_LIMIT"`
+	CryptoKey      string `env:"CRYPTO_KEY"`
+	Config         string `env:"CONFIG"`
+}
+
+type Config struct {
+	Address        string `json:"address"`
+	ReportInterval string `json:"report_interval"`
+	PollInterval   string `json:"poll_interval"`
+	CryptoKey      string `json:"crypto_key"`
 }

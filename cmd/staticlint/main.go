@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/fatih/errwrap/errwrap"
 	"github.com/vorotislav/alert-service/cmd/staticlint/exiter"
-	"golang.org/x/tools/go/analysis"
 
+	"github.com/fatih/errwrap/errwrap"
+	"golang.org/x/tools/go/analysis"
+	"golang.org/x/tools/go/analysis/multichecker"
 	"golang.org/x/tools/go/analysis/passes/asmdecl"
 	"golang.org/x/tools/go/analysis/passes/assign"
 	"golang.org/x/tools/go/analysis/passes/atomic"
@@ -29,24 +30,21 @@ import (
 	"golang.org/x/tools/go/analysis/passes/nilfunc"
 	"golang.org/x/tools/go/analysis/passes/nilness"
 	"golang.org/x/tools/go/analysis/passes/pkgfact"
+	"golang.org/x/tools/go/analysis/passes/printf"
 	"golang.org/x/tools/go/analysis/passes/reflectvaluecompare"
+	"golang.org/x/tools/go/analysis/passes/shadow"
 	"golang.org/x/tools/go/analysis/passes/shift"
 	"golang.org/x/tools/go/analysis/passes/sigchanyzer"
 	"golang.org/x/tools/go/analysis/passes/sortslice"
 	"golang.org/x/tools/go/analysis/passes/stdmethods"
 	"golang.org/x/tools/go/analysis/passes/stringintconv"
+	"golang.org/x/tools/go/analysis/passes/structtag"
 	"golang.org/x/tools/go/analysis/passes/tests"
 	"golang.org/x/tools/go/analysis/passes/unmarshal"
 	"golang.org/x/tools/go/analysis/passes/unreachable"
 	"golang.org/x/tools/go/analysis/passes/unsafeptr"
 	"golang.org/x/tools/go/analysis/passes/unusedresult"
 	"golang.org/x/tools/go/analysis/passes/unusedwrite"
-
-	"golang.org/x/tools/go/analysis/multichecker"
-	"golang.org/x/tools/go/analysis/passes/printf"
-	"golang.org/x/tools/go/analysis/passes/shadow"
-	"golang.org/x/tools/go/analysis/passes/structtag"
-
 	"honnef.co/go/tools/simple"
 	"honnef.co/go/tools/staticcheck"
 )

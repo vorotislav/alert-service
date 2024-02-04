@@ -3,6 +3,7 @@ package metrics
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
 	"runtime"
 	"time"
@@ -93,10 +94,11 @@ func NewWorker(log *zap.Logger, set *agent.Settings, client Client) *Worker {
 func (w *Worker) Start(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 	w.cancel = cancel
+
 	go w.startWorker(ctx)
 }
 
-// Stop прерывает выполнение Worker'а и останавливает сбор данных
+// Stop прерывает выполнение Worker'а и останавливает сбор данных.
 func (w *Worker) Stop(_ context.Context) {
 	w.cancel()
 }
@@ -106,6 +108,7 @@ func (w *Worker) startWorker(ctx context.Context) {
 	reportTicker := time.NewTicker(time.Duration(w.set.ReportInterval) * time.Second)
 
 	eg := &errgroup.Group{}
+
 	for {
 		select {
 		case <-pollTicker.C:
@@ -113,6 +116,7 @@ func (w *Worker) startWorker(ctx context.Context) {
 			w.readMetrics()
 
 			eg.Go(w.readAddMetrics)
+
 			if err := eg.Wait(); err != nil {
 				w.log.Error("read additional metrics", zap.Error(err))
 			}
@@ -120,6 +124,7 @@ func (w *Worker) startWorker(ctx context.Context) {
 			w.log.Debug("polling metrics", zap.Int("iteration", w.pollCount))
 		case <-reportTicker.C:
 			w.log.Debug("report metrics")
+
 			if err := w.client.SendMetrics(w.metrics); err != nil {
 				w.log.Error("error of report metrics", zap.Error(err))
 			}
@@ -127,6 +132,7 @@ func (w *Worker) startWorker(ctx context.Context) {
 			w.log.Debug("stop metrics working")
 			pollTicker.Stop()
 			reportTicker.Stop()
+
 			return
 		}
 	}
@@ -139,12 +145,12 @@ func getTemplateMetric(name, metricType string) *model.Metrics {
 			MType: metricType,
 			Value: new(float64),
 		}
-	} else {
-		return &model.Metrics{
-			ID:    name,
-			MType: metricType,
-			Delta: new(int64),
-		}
+	}
+
+	return &model.Metrics{
+		ID:    name,
+		MType: metricType,
+		Delta: new(int64),
 	}
 }
 
@@ -189,14 +195,14 @@ func (w *Worker) readAddMetrics() error {
 	if err != nil {
 		w.log.Error("get virtual memory", zap.Error(err))
 
-		return err
+		return fmt.Errorf("virtual memory: %w", err)
 	}
 
 	percent, err := cpu.Percent(0, true)
 	if err != nil {
 		w.log.Error("get cpu percent", zap.Error(err))
 
-		return err
+		return fmt.Errorf("cpu percent: %w", err)
 	}
 
 	tm := w.metrics[MetricTotalMemory]
@@ -214,7 +220,7 @@ func (w *Worker) readAddMetrics() error {
 	return nil
 }
 
-func (w *Worker) readMetrics() {
+func (w *Worker) readMetrics() { //nolint:funlen,gocyclo,cyclop
 	ms := runtime.MemStats{}
 	runtime.ReadMemStats(&ms)
 
@@ -278,7 +284,7 @@ func (w *Worker) readMetrics() {
 		case MetricGCCPUFraction:
 			*v.Value = ms.GCCPUFraction
 		case MetricRandomValue:
-			*v.Value = rand.Float64()
+			*v.Value = rand.Float64() //nolint:gosec
 		}
 
 		w.metrics[k] = v

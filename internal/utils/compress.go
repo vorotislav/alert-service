@@ -39,7 +39,7 @@ func Decompress(data []byte) ([]byte, error) {
 	// в переменную b записываются распакованные данные
 	_, err = b.ReadFrom(r)
 	if err != nil {
-		return nil, fmt.Errorf("failed decompress data: %v", err)
+		return nil, fmt.Errorf("failed decompress data: %w", err)
 	}
 
 	return b.Bytes(), nil
