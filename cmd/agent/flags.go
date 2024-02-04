@@ -19,7 +19,7 @@ const (
 	defaultRateLimit      = 3
 )
 
-func parseFlags(sets *agent.Settings) {
+func parseFlags(sets *agent.Settings) { //nolint:gocognit,cyclop
 	if err := env.Parse(sets); err == nil { //nolint:nestif
 		if sets.ServerAddress == "" {
 			flag.StringVar(&sets.ServerAddress, "a", "", "server url")
@@ -52,7 +52,7 @@ func parseFlags(sets *agent.Settings) {
 
 	flag.Parse()
 
-	if sets.Config != "" {
+	if sets.Config != "" { //nolint:nestif
 		cfg, err := readConfigFile(sets.Config)
 		if err != nil {
 			return

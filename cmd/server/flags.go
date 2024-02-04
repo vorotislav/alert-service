@@ -108,6 +108,7 @@ func readConfigFile(path string) (server.Config, error) {
 	}
 
 	c := server.Config{}
+
 	err = json.Unmarshal(data, &c)
 	if err != nil {
 		return server.Config{}, fmt.Errorf("cannot unmarshal config: %w", err)

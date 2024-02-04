@@ -143,7 +143,12 @@ func (m *MemStorage) writeMetrics() error {
 		return fmt.Errorf("cannot write counter metrics: %w", err)
 	}
 
-	_, _ = m.file.Seek(0, 0)
+	_, err := m.file.Seek(0, 0)
+	if err != nil {
+		m.log.Debug("seek in file", zap.Error(err))
+
+		return fmt.Errorf("cannot seek file: %w", err)
+	}
 
 	return nil
 }

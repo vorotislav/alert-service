@@ -51,7 +51,10 @@ func DecryptMiddleware(log *zap.Logger, privateKeyPath string) func(h http.Handl
 				return
 			}
 
-			_ = r.Body.Close()
+			err = r.Body.Close()
+			if err != nil {
+				log.Error("http body close", zap.Error(err))
+			}
 
 			decrypted, err := rsa.DecryptPKCS1v15(rand.Reader, privateKey, body)
 			if err != nil {
