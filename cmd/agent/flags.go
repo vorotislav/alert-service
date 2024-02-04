@@ -52,50 +52,55 @@ func parseFlags(sets *agent.Settings) { //nolint:gocognit,cyclop
 
 	flag.Parse()
 
-	if sets.Config != "" { //nolint:nestif
-		cfg, err := readConfigFile(sets.Config)
+	var (
+		cfg agent.Config
+		err error
+	)
+
+	if sets.Config != "" {
+		cfg, err = readConfigFile(sets.Config)
 		if err != nil {
 			return
 		}
+	}
 
-		if sets.ServerAddress == "" {
-			if cfg.Address != "" {
-				sets.ServerAddress = cfg.Address
-			} else {
-				sets.ServerAddress = defaultAddress
-			}
+	if sets.ServerAddress == "" {
+		if cfg.Address != "" {
+			sets.ServerAddress = cfg.Address
+		} else {
+			sets.ServerAddress = defaultAddress
 		}
+	}
 
-		if sets.ReportInterval == 0 {
-			if cfg.ReportInterval != "" {
-				interval, err := strconv.Atoi(cfg.ReportInterval)
-				if err != nil {
-					sets.ReportInterval = defaultReportInterval
-				} else {
-					sets.ReportInterval = interval
-				}
-			} else {
+	if sets.ReportInterval == 0 {
+		if cfg.ReportInterval != "" {
+			interval, err := strconv.Atoi(cfg.ReportInterval)
+			if err != nil {
 				sets.ReportInterval = defaultReportInterval
-			}
-		}
-
-		if sets.PollInterval == 0 {
-			if cfg.PollInterval != "" {
-				interval, err := strconv.Atoi(cfg.PollInterval)
-				if err != nil {
-					sets.PollInterval = defaultPollInterval
-				} else {
-					sets.PollInterval = interval
-				}
 			} else {
-				sets.PollInterval = defaultPollInterval
+				sets.ReportInterval = interval
 			}
+		} else {
+			sets.ReportInterval = defaultReportInterval
 		}
+	}
 
-		if sets.CryptoKey != "" {
-			if cfg.CryptoKey != "" {
-				sets.CryptoKey = cfg.CryptoKey
+	if sets.PollInterval == 0 {
+		if cfg.PollInterval != "" {
+			interval, err := strconv.Atoi(cfg.PollInterval)
+			if err != nil {
+				sets.PollInterval = defaultPollInterval
+			} else {
+				sets.PollInterval = interval
 			}
+		} else {
+			sets.PollInterval = defaultPollInterval
+		}
+	}
+
+	if sets.CryptoKey != "" {
+		if cfg.CryptoKey != "" {
+			sets.CryptoKey = cfg.CryptoKey
 		}
 	}
 }
