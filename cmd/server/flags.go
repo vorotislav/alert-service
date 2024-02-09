@@ -55,6 +55,10 @@ func parseFlag(sets *server.Settings) {
 
 	flag.StringVar(&configFile, "config", "", "path to config file")
 
+	var trustedSubnet string
+
+	flag.StringVar(&trustedSubnet, "t", "", "trusted subnet fot check incoming request")
+
 	flag.Parse()
 
 	if err := env.Parse(sets); err != nil {
@@ -94,6 +98,10 @@ func parseFlag(sets *server.Settings) {
 
 	if sets.CryptoKey == "" {
 		sets.CryptoKey = getKey(cryptoKey, cfg.CryptoKey)
+	}
+
+	if sets.TrustedSubnet == "" {
+		sets.TrustedSubnet = getSubnet(trustedSubnet, cfg.TrustedSubnet)
 	}
 }
 
@@ -162,4 +170,12 @@ func getKey(flagKey, cfgKey string) string {
 	}
 
 	return cfgKey
+}
+
+func getSubnet(flagSubnet, cfgSubnet string) string {
+	if flagSubnet != "" {
+		return flagSubnet
+	}
+
+	return cfgSubnet
 }
