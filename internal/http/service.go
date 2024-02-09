@@ -40,6 +40,10 @@ func NewService(
 
 	r.Use(middlewares.New(log))
 
+	if set.TrustedSubnet != "" {
+		r.Use(middlewares.CheckSenderIP(log, set.TrustedSubnet))
+	}
+
 	if set.HashKey != "" {
 		r.Use(middlewares.Hash(log, set.HashKey))
 	}
