@@ -40,6 +40,7 @@ func NewService(
 
 	r.Use(middlewares.New(log))
 
+	// проверяем, что есть доверенная сеть для агентов
 	if set.TrustedSubnet != "" {
 		r.Use(middlewares.CheckSenderIP(log, set.TrustedSubnet))
 	}

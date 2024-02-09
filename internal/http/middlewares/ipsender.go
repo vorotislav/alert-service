@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// CheckSenderIP парсит сеть и проверяет ip адрес из заголовка запроса. Если адрес из другой сети - возвращаем 403.
 func CheckSenderIP(log *zap.Logger, cidr string) func(h http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
 		ch := func(w http.ResponseWriter, r *http.Request) {
