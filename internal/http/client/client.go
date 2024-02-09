@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"time"
 
@@ -146,6 +147,13 @@ func (c *Client) sendMetricRetry(metric *model.Metrics) error { //nolint:funlen
 		req.Header.Set("HashSHA256", base64.StdEncoding.EncodeToString(hash))
 	}
 
+	ipAddr, err := getIPAddress()
+	if err != nil {
+		c.logger.Info("cannot get ip address", zap.Error(err))
+	} else {
+		req.Header.Set("X-Real-IP", ipAddr)
+	}
+
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept-Encoding", "gzip")
 	req.Header.Set("Content-Encoding", "gzip")
@@ -187,4 +195,21 @@ func (c *Client) sendMetricRetry(metric *model.Metrics) error { //nolint:funlen
 	}
 
 	return nil
+}
+
+func getIPAddress() (string, error) {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "", fmt.Errorf("cannot get interface addresses: %w", err)
+	}
+
+	for _, a := range addrs {
+		if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return ipnet.IP.String(), nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("cannot get ip address")
 }
