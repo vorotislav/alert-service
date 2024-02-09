@@ -10,6 +10,7 @@ type Settings struct {
 	HashKey         string `env:"KEY"`
 	CryptoKey       string `env:"CRYPTO_KEY"`
 	Config          string `env:"CONFIG"`
+	TrustedSubnet   string `env:"TRUSTED_SUBNET"`
 }
 
 type Config struct {
@@ -19,4 +20,5 @@ type Config struct {
 	StoreFile     string  `json:"store_file"`
 	DatabaseDsn   string  `json:"database_dsn"`
 	CryptoKey     string  `json:"crypto_key"`
+	TrustedSubnet string  `json:"trusted_subnet"`
 }

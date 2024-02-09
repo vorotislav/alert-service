@@ -47,7 +47,8 @@ func main() {
 		zap.Bool("restore flag", *sets.Restore),
 		zap.String("file path", sets.FileStoragePath),
 		zap.String("database dsn", sets.DatabaseDSN),
-		zap.String("hash key", sets.HashKey))
+		zap.String("hash key", sets.HashKey),
+		zap.String("trusted subnet", sets.TrustedSubnet))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	oss := signals.NewOSSignals(ctx)
