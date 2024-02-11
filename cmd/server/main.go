@@ -87,7 +87,7 @@ func main() {
 		}
 	}(serviceErrCh)
 
-	gs := grpc.NewMetricServer(logger, repo, sets.GAddress)
+	gs := grpc.NewMetricServer(logger, repo, sets.GAddress, sets.TrustedSubnet)
 
 	gserviceErrCh := make(chan error, 1)
 	go func(errCh chan<- error) {
