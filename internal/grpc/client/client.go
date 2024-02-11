@@ -4,7 +4,10 @@ package client
 import (
 	"context"
 	"fmt"
+	"net"
 	"time"
+
+	"google.golang.org/grpc/metadata"
 
 	interLog "github.com/vorotislav/alert-service/internal/grpc/middlewares/log"
 	"github.com/vorotislav/alert-service/internal/model"
@@ -21,6 +24,7 @@ type Client struct {
 	logger        *zap.Logger
 	serverAddress string
 	conn          *grpc.ClientConn
+	localAddress  string
 }
 
 // NewClient конструктор для Client.
@@ -37,11 +41,18 @@ func NewClient(logger *zap.Logger, serverAddress string) (*Client, error) {
 	gc := pb.NewMetricsClient(conn)
 
 	logger.Debug("grpc client created on:", zap.String("grpc server address", serverAddress))
+
+	la, err := getIPAddress()
+	if err != nil {
+		logger.Error("Get ip address", zap.Error(err))
+	}
+
 	return &Client{
 		gc:            gc,
 		logger:        logger.With(zap.String("package", "grpc client")),
 		serverAddress: serverAddress,
 		conn:          conn,
+		localAddress:  la,
 	}, nil
 }
 
@@ -56,6 +67,9 @@ func (c *Client) Stop() error {
 func (c *Client) SendMetrics(metrics map[string]*model.Metrics) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
+
+	md := metadata.New(map[string]string{"X-Real-IP": c.localAddress})
+	ctx = metadata.NewOutgoingContext(ctx, md)
 
 	for _, v := range metrics {
 		_, err := c.gc.AddMetric(ctx, &pb.AddMetricRequest{
@@ -86,4 +100,21 @@ func convertMetricTypeToPB(mtype string) pb.Metric_MetricType {
 	}
 
 	return pb.Metric_UNSPECIFIED
+}
+
+func getIPAddress() (string, error) {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "", fmt.Errorf("cannot get interface addresses: %w", err)
+	}
+
+	for _, a := range addrs {
+		if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return ipnet.IP.String(), nil
+			}
+		}
+	}
+
+	return "", fmt.Errorf("cannot get ip address")
 }

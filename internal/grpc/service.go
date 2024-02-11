@@ -6,6 +6,8 @@ import (
 	"log"
 	"net"
 
+	"github.com/vorotislav/alert-service/internal/grpc/middlewares/headers"
+
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -28,7 +30,7 @@ type MetricServer struct {
 	s       *grpc.Server
 }
 
-func NewMetricServer(log *zap.Logger, repo repository.Repository, address string) *MetricServer {
+func NewMetricServer(log *zap.Logger, repo repository.Repository, address, cidr string) *MetricServer {
 
 	ms := &MetricServer{
 		logger:  log.With(zap.String("package", "grpc service")),
@@ -39,6 +41,7 @@ func NewMetricServer(log *zap.Logger, repo repository.Repository, address string
 	ms.s = grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
 			interLog.NewServerLoggerInterceptor(log.With(zap.String("package", "grpc interceptor"))),
+			headers.NewServerCheckIP(cidr),
 		),
 	)
 
