@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/vorotislav/alert-service/internal/settings/server"
 
@@ -15,6 +14,7 @@ import (
 
 const (
 	defaultAddress     = ":8080"
+	defaultGAddress    = ":9090"
 	defaultRestore     = true
 	defaultInterval    = 300
 	defaultStoragePath = "/tmp/metrics-db.json"
@@ -25,7 +25,7 @@ var errEmptyFilePath = errors.New("empty file path")
 func parseFlag(sets *server.Settings) {
 	var address string
 
-	flag.StringVar(&address, "a", "", "address and port to run server")
+	flag.StringVar(&address, "a", "", "address and port to run HTTP server")
 
 	var restore bool
 
@@ -59,6 +59,10 @@ func parseFlag(sets *server.Settings) {
 
 	flag.StringVar(&trustedSubnet, "t", "", "trusted subnet fot check incoming request")
 
+	var gaddress string
+
+	flag.StringVar(&gaddress, "g", "", "address and port to run gRPC server")
+
 	flag.Parse()
 
 	if err := env.Parse(sets); err != nil {
@@ -69,10 +73,10 @@ func parseFlag(sets *server.Settings) {
 		sets.Config = configFile
 	}
 
-	cfg, _ := readConfigFile(sets.Config)
+	fileCfg, _ := readConfigFile(sets.Config)
 
 	if sets.Address == "" {
-		sets.Address = getAddress(address, cfg.Address)
+		sets.Address = getAddress(address, fileCfg.Address)
 	}
 
 	if sets.FileStoragePath == "" {
@@ -80,7 +84,7 @@ func parseFlag(sets *server.Settings) {
 	}
 
 	if sets.StoreInterval == nil {
-		storeInterval := getStoreInterval(interval, cfg.StoreInterval)
+		storeInterval := getStoreInterval(interval, fileCfg.StoreInterval)
 		sets.StoreInterval = &storeInterval
 	}
 
@@ -89,7 +93,7 @@ func parseFlag(sets *server.Settings) {
 	}
 
 	if sets.DatabaseDSN == "" {
-		sets.DatabaseDSN = getDSN(databaseDSN, cfg.DatabaseDsn)
+		sets.DatabaseDSN = getDSN(databaseDSN, fileCfg.DatabaseDSN)
 	}
 
 	if sets.HashKey == "" {
@@ -97,29 +101,33 @@ func parseFlag(sets *server.Settings) {
 	}
 
 	if sets.CryptoKey == "" {
-		sets.CryptoKey = getKey(cryptoKey, cfg.CryptoKey)
+		sets.CryptoKey = getKey(cryptoKey, fileCfg.CryptoKey)
 	}
 
 	if sets.TrustedSubnet == "" {
-		sets.TrustedSubnet = getSubnet(trustedSubnet, cfg.TrustedSubnet)
+		sets.TrustedSubnet = getSubnet(trustedSubnet, fileCfg.TrustedSubnet)
+	}
+
+	if sets.GAddress == "" {
+		sets.GAddress = getGAddress(gaddress, fileCfg.GAddress)
 	}
 }
 
-func readConfigFile(path string) (server.Config, error) {
+func readConfigFile(path string) (server.Settings, error) {
 	if path == "" {
-		return server.Config{}, errEmptyFilePath
+		return server.Settings{}, errEmptyFilePath
 	}
 
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return server.Config{}, fmt.Errorf("cannot read config file: %w", err)
+		return server.Settings{}, fmt.Errorf("cannot read config file: %w", err)
 	}
 
-	c := server.Config{}
+	c := server.Settings{}
 
 	err = json.Unmarshal(data, &c)
 	if err != nil {
-		return server.Config{}, fmt.Errorf("cannot unmarshal config: %w", err)
+		return server.Settings{}, fmt.Errorf("cannot unmarshal config: %w", err)
 	}
 
 	return c, nil
@@ -137,19 +145,26 @@ func getAddress(flag, conf string) string {
 	return defaultAddress
 }
 
-func getStoreInterval(flagInterval int, confInterval *string) int {
+func getGAddress(flag, conf string) string {
+	if flag != "" {
+		return flag
+	}
+
+	if conf != "" {
+		return conf
+	}
+
+	return defaultGAddress
+}
+
+func getStoreInterval(flagInterval int, confInterval *int) int {
 	if flagInterval > 0 {
 		return flagInterval
 	}
 
-	if confInterval != nil && *confInterval != "" {
-		interval, err := strconv.Atoi(*confInterval)
-		if err != nil {
-			return defaultInterval
-		}
-
-		if interval > 0 {
-			return interval
+	if confInterval != nil {
+		if *confInterval > 0 {
+			return *confInterval
 		}
 	}
 

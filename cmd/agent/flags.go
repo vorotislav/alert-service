@@ -14,6 +14,7 @@ import (
 
 const (
 	defaultAddress        = "localhost:8080"
+	defaultGAddress       = "localhost:9090"
 	defaultPollInterval   = 2
 	defaultReportInterval = 10
 	defaultRateLimit      = 3
@@ -47,6 +48,10 @@ func parseFlags(sets *agent.Settings) { //nolint:gocognit,cyclop
 
 		if sets.Config == "" {
 			flag.StringVar(&sets.Config, "config", "", "path to config file")
+		}
+
+		if sets.GAddress == "" {
+			flag.StringVar(&sets.GAddress, "g", "", "grpc server address")
 		}
 	}
 
@@ -101,6 +106,14 @@ func parseFlags(sets *agent.Settings) { //nolint:gocognit,cyclop
 	if sets.CryptoKey != "" {
 		if cfg.CryptoKey != "" {
 			sets.CryptoKey = cfg.CryptoKey
+		}
+	}
+
+	if sets.GAddress == "" {
+		if cfg.GAddress != "" {
+			sets.GAddress = cfg.GAddress
+		} else {
+			sets.GAddress = defaultGAddress
 		}
 	}
 }

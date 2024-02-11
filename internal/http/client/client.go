@@ -43,7 +43,7 @@ type Client struct {
 }
 
 // NewClient конструктор для Client.
-func NewClient(logger *zap.Logger, set *agent.Settings) *Client {
+func NewClient(logger *zap.Logger, set *agent.Settings) (*Client, error) {
 	c := &Client{
 		dc: &http.Client{
 			Timeout: defaultClientTimeout,
@@ -53,7 +53,7 @@ func NewClient(logger *zap.Logger, set *agent.Settings) *Client {
 		serverURL: fmt.Sprintf("http://%s/update", set.ServerAddress),
 	}
 
-	return c
+	return c, nil
 }
 
 // SendMetrics метод отправки метрик на сервер. Принимает карту с метриками и возвращает ошибку.
@@ -74,6 +74,11 @@ func (c *Client) SendMetrics(metrics map[string]*model.Metrics) error {
 
 	close(jobs)
 
+	return nil
+}
+
+// Stop реализует интерфейс Client. Для данного клиента ничего не происходит
+func (c *Client) Stop() error {
 	return nil
 }
 

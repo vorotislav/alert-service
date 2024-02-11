@@ -8,7 +8,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/vorotislav/alert-service/internal/http/client"
+	grpcClient "github.com/vorotislav/alert-service/internal/grpc/client"
+	httpClient "github.com/vorotislav/alert-service/internal/http/client"
 	"github.com/vorotislav/alert-service/internal/metrics"
 	"github.com/vorotislav/alert-service/internal/settings/agent"
 	"github.com/vorotislav/alert-service/internal/signals"
@@ -45,6 +46,7 @@ func main() {
 		buildVersion, buildDate, buildCommit))
 	logger.Debug("Current settings",
 		zap.String("server address", sets.ServerAddress),
+		zap.String("grpc server address", sets.GAddress),
 		zap.Int("report interval", sets.ReportInterval),
 		zap.Int("poll interval", sets.PollInterval),
 		zap.Int("rate limit", sets.RateLimit),
@@ -60,7 +62,21 @@ func main() {
 		cancel()
 	})
 
-	wc := client.NewClient(logger, &sets)
+	var (
+		wc metrics.Client
+	)
+
+	if sets.GAddress != "" {
+		wc, err = grpcClient.NewClient(logger, sets.GAddress)
+	} else {
+		wc, err = httpClient.NewClient(logger, &sets)
+	}
+
+	if err != nil {
+		logger.Error("cannot create client for sending metrics", zap.Error(err))
+
+		return
+	}
 
 	worker := metrics.NewWorker(logger, &sets, wc)
 	worker.Start(ctx)
