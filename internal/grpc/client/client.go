@@ -9,7 +9,6 @@ import (
 	"github.com/vorotislav/alert-service/internal/model"
 	pb "github.com/vorotislav/alert-service/proto"
 
-	"github.com/vorotislav/alert-service/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -17,7 +16,7 @@ import (
 
 // Client основная сущность для отправки метрик. Содержит в себе grpc соединение, логгер, настройки и URL сервера.
 type Client struct {
-	gc            proto.MetricsClient
+	gc            pb.MetricsClient
 	logger        *zap.Logger
 	serverAddress string
 	conn          *grpc.ClientConn
