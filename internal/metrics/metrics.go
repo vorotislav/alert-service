@@ -64,6 +64,7 @@ const (
 // Client представляет интерфейс для отправки метрик на сервер.
 type Client interface {
 	SendMetrics(metrics map[string]*model.Metrics) error
+	Stop() error
 }
 
 // Worker основная часть пакета. Содержит в себе логгер, настройки, клиент для отправки метрик, а так же хранит последние метрики.

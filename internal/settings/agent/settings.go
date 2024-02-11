@@ -9,6 +9,7 @@ type Settings struct {
 	RateLimit      int    `env:"RATE_LIMIT"`
 	CryptoKey      string `env:"CRYPTO_KEY"`
 	Config         string `env:"CONFIG"`
+	GAddress       string `env:"GADDRESS"`
 }
 
 type Config struct {
@@ -16,4 +17,5 @@ type Config struct {
 	ReportInterval string `json:"report_interval"`
 	PollInterval   string `json:"poll_interval"`
 	CryptoKey      string `json:"crypto_key"`
+	GAddress       string `json:"g_address"`
 }

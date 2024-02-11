@@ -1,4 +1,5 @@
 {
   "database_dsn":"user=postgres password=postgres host=127.0.0.1 port=5432 dbname=alert_service pool_max_conns=10",
-  "crypto-key":"./cmd/server/private.pem"
+  "crypto-key":"./cmd/server/private.pem",
+  "trusted_subnet": "192.168.1.0/24"
 }

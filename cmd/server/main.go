@@ -7,6 +7,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/vorotislav/alert-service/internal/grpc"
+
 	"github.com/vorotislav/alert-service/internal/http"
 	"github.com/vorotislav/alert-service/internal/repository"
 	"github.com/vorotislav/alert-service/internal/settings/server"
@@ -43,11 +45,13 @@ func main() {
 	logger.Debug(fmt.Sprintf("Build version: %s\nBuild date: %s\nBuild commit: %s\n",
 		buildVersion, buildDate, buildCommit))
 	logger.Debug("Current settings",
-		zap.String("ip address", sets.Address),
+		zap.String("http address", sets.Address),
+		zap.String("grpc address", sets.GAddress),
 		zap.Bool("restore flag", *sets.Restore),
 		zap.String("file path", sets.FileStoragePath),
 		zap.String("database dsn", sets.DatabaseDSN),
-		zap.String("hash key", sets.HashKey))
+		zap.String("hash key", sets.HashKey),
+		zap.String("trusted subnet", sets.TrustedSubnet))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	oss := signals.NewOSSignals(ctx)
@@ -83,12 +87,29 @@ func main() {
 		}
 	}(serviceErrCh)
 
+	gs := grpc.NewMetricServer(logger, repo, sets.GAddress, sets.TrustedSubnet)
+
+	gserviceErrCh := make(chan error, 1)
+	go func(errCh chan<- error) {
+		defer close(errCh)
+
+		if err := gs.Run(); err != nil {
+			errCh <- err
+		}
+	}(gserviceErrCh)
+
 	select {
 	case err := <-serviceErrCh:
 		if err != nil {
 			logger.Error("service error", zap.Error(err))
 			cancel()
 		}
+	case err := <-gserviceErrCh:
+		if err != nil {
+			logger.Error("grpc service error", zap.Error(err))
+			cancel()
+		}
+
 	case <-ctx.Done():
 		logger.Info("Server stopping...")
 
@@ -96,6 +117,10 @@ func main() {
 
 		if err := s.Stop(ctxShutdown); err != nil {
 			logger.Error("cannot stop server", zap.Error(err))
+		}
+
+		if err := gs.Stop(ctxShutdown); err != nil {
+			logger.Error("cannot stop grpc server", zap.Error(err))
 		}
 
 		defer ctxCancelShutdown()
