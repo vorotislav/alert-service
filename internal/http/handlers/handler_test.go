@@ -635,12 +635,20 @@ func BenchmarkHandler_Ping(b *testing.B) {
 	restore := false
 	log, _ := zap.NewDevelopment()
 	rep, _ := repository.NewRepository(context.Background(), log, &srv.Settings{
-		Address:         "",
-		StoreInterval:   &interval,
-		FileStoragePath: "",
-		Restore:         &restore,
-		DatabaseDSN:     "",
-		HashKey:         "",
+		StorageCfg: srv.StorageCfg{
+			StoreInterval:   &interval,
+			FileStoragePath: "",
+			Restore:         &restore,
+			DatabaseDSN:     "",
+		},
+		NetworkCfg: srv.NetworkCfg{
+			Address:       "",
+			TrustedSubnet: "",
+			GAddress:      "",
+		},
+		HashKey:   "",
+		CryptoKey: "",
+		Config:    "",
 	})
 
 	h := &Handler{
@@ -673,12 +681,20 @@ func BenchmarkHandler_Updates(b *testing.B) {
 	body := []byte(`[{"id":"some counter", "mtype":"counter", "delta":1},{"id":"some gauge", "type":"gauge", "value":1.1}]`)
 	log, _ := zap.NewDevelopment()
 	rep, _ := repository.NewRepository(context.Background(), log, &srv.Settings{
-		Address:         "",
-		StoreInterval:   &interval,
-		FileStoragePath: "",
-		Restore:         &restore,
-		DatabaseDSN:     "",
-		HashKey:         "",
+		StorageCfg: srv.StorageCfg{
+			StoreInterval:   &interval,
+			FileStoragePath: "",
+			Restore:         &restore,
+			DatabaseDSN:     "",
+		},
+		NetworkCfg: srv.NetworkCfg{
+			Address:       "",
+			TrustedSubnet: "",
+			GAddress:      "",
+		},
+		HashKey:   "",
+		CryptoKey: "",
+		Config:    "",
 	})
 
 	h := &Handler{
@@ -712,12 +728,20 @@ func BenchmarkHandler_Update(b *testing.B) {
 	restore := false
 	log, _ := zap.NewDevelopment()
 	rep, _ := repository.NewRepository(context.Background(), log, &srv.Settings{
-		Address:         "",
-		StoreInterval:   &interval,
-		FileStoragePath: "",
-		Restore:         &restore,
-		DatabaseDSN:     "",
-		HashKey:         "",
+		StorageCfg: srv.StorageCfg{
+			StoreInterval:   &interval,
+			FileStoragePath: "",
+			Restore:         &restore,
+			DatabaseDSN:     "",
+		},
+		NetworkCfg: srv.NetworkCfg{
+			Address:       "",
+			TrustedSubnet: "",
+			GAddress:      "",
+		},
+		HashKey:   "",
+		CryptoKey: "",
+		Config:    "",
 	})
 
 	h := &Handler{
@@ -756,12 +780,20 @@ func BenchmarkHandler_UpdateJSON(b *testing.B) {
 	body := []byte(`{"id":"some counter", "type":"counter", "delta":1}`)
 	log, _ := zap.NewDevelopment()
 	rep, _ := repository.NewRepository(context.Background(), log, &srv.Settings{
-		Address:         "",
-		StoreInterval:   &interval,
-		FileStoragePath: "",
-		Restore:         &restore,
-		DatabaseDSN:     "",
-		HashKey:         "",
+		StorageCfg: srv.StorageCfg{
+			StoreInterval:   &interval,
+			FileStoragePath: "",
+			Restore:         &restore,
+			DatabaseDSN:     "",
+		},
+		NetworkCfg: srv.NetworkCfg{
+			Address:       "",
+			TrustedSubnet: "",
+			GAddress:      "",
+		},
+		HashKey:   "",
+		CryptoKey: "",
+		Config:    "",
 	})
 
 	h := &Handler{
