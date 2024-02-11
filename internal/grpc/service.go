@@ -3,6 +3,7 @@ package grpc
 import (
 	"context"
 	"fmt"
+	"log"
 	"net"
 
 	"google.golang.org/grpc/codes"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/vorotislav/alert-service/internal/model"
 
+	interLog "github.com/vorotislav/alert-service/internal/grpc/middlewares/log"
 	"github.com/vorotislav/alert-service/internal/repository"
 	pb "github.com/vorotislav/alert-service/proto"
 
@@ -34,7 +36,11 @@ func NewMetricServer(log *zap.Logger, repo repository.Repository, address string
 		address: address,
 	}
 
-	ms.s = grpc.NewServer()
+	ms.s = grpc.NewServer(
+		grpc.ChainUnaryInterceptor(
+			interLog.NewServerLoggerInterceptor(log.With(zap.String("package", "grpc interceptor"))),
+		),
+	)
 
 	pb.RegisterMetricsServer(ms.s, ms)
 
@@ -105,4 +111,14 @@ func convertMetricTypeToPB(mt string) pb.Metric_MetricType {
 	}
 
 	return pb.Metric_UNSPECIFIED
+}
+
+func loggingInterceptor(
+	ctx context.Context,
+	req interface{},
+	info *grpc.UnaryServerInfo,
+	handler grpc.UnaryHandler) (interface{}, error) {
+	log.Printf("Received request: %v", req)
+	resp, err := handler(ctx, req)
+	return resp, err
 }

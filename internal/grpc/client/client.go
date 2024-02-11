@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	interLog "github.com/vorotislav/alert-service/internal/grpc/middlewares/log"
 	"github.com/vorotislav/alert-service/internal/model"
 	pb "github.com/vorotislav/alert-service/proto"
 
@@ -24,7 +25,11 @@ type Client struct {
 
 // NewClient конструктор для Client.
 func NewClient(logger *zap.Logger, serverAddress string) (*Client, error) {
-	conn, err := grpc.Dial(serverAddress, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial(serverAddress,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithUnaryInterceptor(
+			interLog.NewClientLoggerInterceptor(logger.With(zap.String("package", "grpc interceptor")))),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create connection to server: %w", err)
 	}
