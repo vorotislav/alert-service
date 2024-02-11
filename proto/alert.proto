@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package alert;
+
+option go_package = "alert-service/proto";
+
+service Metrics {
+  rpc AddMetric(AddMetricRequest) returns (AddMetricResponse);
+}
+
+message Metric {
+  string id = 1;
+  enum MetricType {
+    UNSPECIFIED = 0;
+    COUNTER = 1;
+    GAUGE = 2;
+  }
+  MetricType type = 2;
+  optional int64 delta = 3;
+  optional double value = 4;
+}
+
+message AddMetricRequest {
+  Metric metric = 1;
+}
+
+message AddMetricResponse {
+  Metric metric = 1;
+}
